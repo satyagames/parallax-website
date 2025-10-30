@@ -123,30 +123,32 @@ const geometries = [
     new THREE.TorusGeometry(1, 0.3, 32, 100), // Hero
     new THREE.OctahedronGeometry(1.2, 1), // About
     new THREE.TorusKnotGeometry(0.8, 0.3, 100, 16), // Experience
-    new THREE.IcosahedronGeometry(1, 0), // Skills
-    new THREE.ConeGeometry(0.8, 1.5, 32), // Education
-    new THREE.SphereGeometry(1, 32, 32) // Contact
+    new THREE.IcosahedronGeometry(1, 0), // Work
+    new THREE.ConeGeometry(0.8, 1.5, 32), // Skills
+    new THREE.SphereGeometry(1, 32, 32), // Education
+    new THREE.DodecahedronGeometry(1, 0) // Contact
 ];
 
 const materials = geometries.map(() => {
     return new THREE.MeshPhysicalMaterial({
         color: parameters.materialColor,
-        metalness: 0.8,
-        roughness: 0.1,
-        transmission: 0.3,
-        thickness: 1,
+        metalness: 0.9,
+        roughness: 0.05,
+        transmission: 0.1,
+        thickness: 0.5,
         transparent: true,
-        opacity: 0.9,
+        opacity: 0.95,
         side: THREE.DoubleSide,
-        envMapIntensity: 2,
+        envMapIntensity: 3,
         clearcoat: 1.0,
-        clearcoatRoughness: 0.1
+        clearcoatRoughness: 0.05,
+        premultipliedAlpha: true
     });
 });
 
 const sectionMeshes = [];
 
-for(let i = 0; i < 6; i++) {
+for(let i = 0; i < 7; i++) {
     const geometry = geometries[i];
     const mesh = new THREE.Mesh(geometry, materials[i]);
     
@@ -183,9 +185,11 @@ const ringGeometry = new THREE.TorusGeometry(0.3, 0.04, 16, 32);
 const ringMaterial = new THREE.MeshPhysicalMaterial({
     color: parameters.materialColor,
     metalness: 1,
-    roughness: 0.2,
+    roughness: 0.05,
     transparent: true,
-    opacity: 0.8
+    opacity: 0.9,
+    premultipliedAlpha: true,
+    envMapIntensity: 2.5
 });
 
 const rings = [];
@@ -221,7 +225,7 @@ scene.add(ambientLight);
 
 // Add point lights for each section
 const pointLights = [];
-for(let i = 0; i < 6; i++) {
+for(let i = 0; i < 7; i++) {
     const light = new THREE.PointLight('#64ffda', 0.5, 10);
     light.position.y = - objectsDistance * i;
     pointLights.push(light);
@@ -328,7 +332,7 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
  * Scroll
  */
 let currentSection = 0;
-const totalSections = 6;
+const totalSections = 7; // Updated to include all 7 sections
 let isScrolling = false;
 
 let startY = 0;
@@ -338,28 +342,44 @@ const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
 // Initialize sections
 const initializeSections = () => {
+    console.log('Initializing sections');
     sections.forEach((section, index) => {
+        // Store the original index as a data attribute
+        section.setAttribute('data-index', index.toString());
+        
         if (index === 0) {
             section.setAttribute('data-active', 'true');
             section.style.transform = 'translateY(0)';
             section.style.opacity = '1';
             section.style.visibility = 'visible';
+            section.style.display = 'flex';
         } else {
             section.setAttribute('data-active', 'false');
             section.setAttribute('data-direction', 'down');
             section.style.transform = 'translateY(100%)';
             section.style.opacity = '0';
             section.style.visibility = 'hidden';
+            section.style.display = 'none';
         }
+    });
+    
+    // Log section order for debugging
+    sections.forEach(section => {
+        console.log(`Section ${section.id}: index ${section.getAttribute('data-index')}`);
     });
 };
 
+let isDirectNavigating = false;
+
 // Update sections visibility and position
 const updateSections = (targetSection) => {
+    if (isDirectNavigating) return;
+    
     sections.forEach((section, index) => {
         if (index === targetSection) {
             section.setAttribute('data-active', 'true');
             section.style.visibility = 'visible';
+            section.style.display = 'flex';
             requestAnimationFrame(() => {
                 section.style.transform = 'translateY(0)';
                 section.style.opacity = '1';
@@ -373,6 +393,7 @@ const updateSections = (targetSection) => {
             setTimeout(() => {
                 if (section.getAttribute('data-active') === 'false') {
                     section.style.visibility = 'hidden';
+                    section.style.display = 'none';
                 }
             }, 800);
         }
@@ -387,6 +408,8 @@ const handleScroll = (direction) => {
     
     if (nextSection >= 0 && nextSection < totalSections) {
         isScrolling = true;
+        // Update navigation dots
+        updateNavigationDots(nextSection);
         
         const currentSectionEl = sections[currentSection];
         const nextSectionEl = sections[nextSection];
@@ -451,6 +474,133 @@ const handleScroll = (direction) => {
     }
 };
 
+// Define section order mapping
+const sectionOrder = {
+    'hero': 0,
+    'about': 1,
+    'experience': 2,
+    'work': 3,
+    'skills': 4,
+    'education': 5,
+    'contact': 6
+};
+
+// Handle section navigation
+const navigateToSection = (targetId) => {
+    const targetSection = document.getElementById(targetId);
+    if (targetSection) {
+        const targetIndex = sectionOrder[targetId];
+        if (targetIndex !== undefined && currentSection !== targetIndex) {
+            const steps = targetIndex - currentSection;
+            const direction = steps > 0 ? 1 : -1;
+            const stepsCount = Math.abs(steps);
+            
+            let currentStep = 0;
+            const scrollInterval = setInterval(() => {
+                if (currentStep < stepsCount && !isScrolling) {
+                    handleScroll(direction);
+                    currentStep++;
+                } else {
+                    clearInterval(scrollInterval);
+                }
+            }, 800);
+        }
+    }
+};
+
+// Direct navigation function
+const updateNavigationDots = (index) => {
+    document.querySelectorAll('.nav-dot').forEach((dot, i) => {
+        dot.style.background = i === index ? '#64ffda' : 'rgba(255, 255, 255, 0.3)';
+    });
+};
+
+const directNavigateToSection = (targetIndex) => {
+    if (targetIndex !== currentSection) {
+        // Store current section for animation
+        const currentSectionEl = sections[currentSection];
+        const targetSectionEl = sections[targetIndex];
+
+        // Show target section
+        targetSectionEl.style.visibility = 'visible';
+        targetSectionEl.style.display = 'flex';
+
+        // Update navigation dots immediately
+        updateNavigationDots(targetIndex);
+
+        // Animate the transition
+        gsap.timeline()
+            .to(currentSectionEl, {
+                y: targetIndex > currentSection ? '-100%' : '100%',
+                opacity: 0,
+                duration: 0.8,
+                ease: 'power2.inOut',
+                onStart: () => {
+                    currentSectionEl.setAttribute('data-active', 'false');
+                }
+            })
+            .to(targetSectionEl, {
+                y: '0%',
+                opacity: 1,
+                duration: 0.8,
+                ease: 'power2.inOut',
+                onStart: () => {
+                    targetSectionEl.setAttribute('data-active', 'true');
+                }
+            }, '-=0.8')
+            .to(camera.position, {
+                y: -targetIndex * objectsDistance,
+                duration: 0.8,
+                ease: 'power2.inOut',
+                onComplete: () => {
+                    currentSection = targetIndex;
+                    currentSectionEl.style.visibility = 'hidden';
+                    currentSectionEl.style.display = 'none';
+                }
+            }, '-=0.8');
+    }
+};
+
+// Handle click events for navigation
+const initializeNavigation = () => {
+    // Handle "View My Work" button specifically
+    const workButton = document.querySelector('a[href="#work"]');
+    if (workButton) {
+        workButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('Work button clicked');
+            // Get the work section index
+            const workSection = document.getElementById('work');
+            const workIndex = Array.from(sections).indexOf(workSection);
+            console.log('Work section index:', workIndex);
+            directNavigateToSection(workIndex);
+        });
+    }
+
+    // Handle all other section navigation links
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        if (anchor !== workButton) {
+            anchor.addEventListener('click', (e) => {
+                e.preventDefault();
+                const targetId = anchor.getAttribute('href').substring(1);
+                const targetSection = document.getElementById(targetId);
+                if (targetSection) {
+                    const targetIndex = Array.from(sections).indexOf(targetSection);
+                    directNavigateToSection(targetIndex);
+                }
+            });
+        }
+    });
+};
+
+// Initialize navigation when DOM is loaded
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeNavigation);
+} else {
+    initializeNavigation();
+}
+
 // Scroll event listeners
 window.addEventListener('wheel', (event) => {
     event.preventDefault();
@@ -505,26 +655,27 @@ const setupPage = () => {
             gap: 10px;
         `;
 
-        sections.forEach((_, i) => {
+        // Create a dot for each section
+        for (let i = 0; i < totalSections; i++) {
             const dot = document.createElement('button');
             dot.className = 'nav-dot';
+            dot.setAttribute('data-section', i.toString());
             dot.style.cssText = `
                 width: 10px;
                 height: 10px;
                 border-radius: 50%;
-                background: ${i === 0 ? '#64ffda' : 'rgba(255, 255, 255, 0.3)'};
+                background: ${i === currentSection ? '#64ffda' : 'rgba(255, 255, 255, 0.3)'};
                 border: none;
                 cursor: pointer;
                 transition: all 0.3s ease;
             `;
             dot.addEventListener('click', () => {
                 if (!isScrolling && currentSection !== i) {
-                    const direction = i > currentSection ? 1 : -1;
-                    handleScroll(direction);
+                    directNavigateToSection(i);
                 }
             });
             nav.appendChild(dot);
-        });
+        }
 
         document.body.appendChild(nav);
     }
@@ -551,37 +702,46 @@ const tick = () => {
     const deltaTime = elapsedTime - previousTime;
     previousTime = elapsedTime;
 
-    const targetCameraY = - currentSection * objectsDistance;
+    // Update camera position for section transitions
+    const targetCameraY = -currentSection * objectsDistance;
     camera.position.y += (targetCameraY - camera.position.y) * 5 * deltaTime;
     
-    const scrollProgress = currentSection / (totalSections - 1);
-    camera.rotation.z = Math.sin(scrollProgress * Math.PI) * 0.1;
+    // Calculate and apply camera rotation based on scroll progress
+    const progress = currentSection / (totalSections - 1);
+    camera.rotation.z = Math.sin(progress * Math.PI) * 0.1;
 
+    // Apply parallax effect
     const parallaxX = cursor.x * 0.5;
-    const parallaxY = - cursor.y * 0.5;
+    const parallaxY = -cursor.y * 0.5;
     cameraGroup.position.x += (parallaxX - cameraGroup.position.x) * 3 * deltaTime;
     cameraGroup.position.y += (parallaxY - cameraGroup.position.y) * 3 * deltaTime;
 
+    // Update meshes animations
     sectionMeshes.forEach((mesh, i) => {
         const isMainObject = i % 2 === 0;
         if (isMainObject) {
+            // Animate main objects
             mesh.rotation.x = elapsedTime * 0.1;
             mesh.rotation.y = elapsedTime * 0.15;
             
-            mesh.position.y = - objectsDistance * Math.floor(i/2) + Math.sin(elapsedTime * 0.5) * 0.2;
+            const baseY = -objectsDistance * Math.floor(i/2);
+            mesh.position.y = baseY + Math.sin(elapsedTime * 0.5) * 0.2;
             mesh.position.x += (Math.sin(elapsedTime * 0.3) * 0.1 - mesh.position.x) * deltaTime;
             mesh.position.z += (Math.cos(elapsedTime * 0.2) * 0.1 - mesh.position.z) * deltaTime;
         } else {
+            // Animate secondary objects
             mesh.rotation.x = elapsedTime * 0.2;
             mesh.rotation.y = elapsedTime * 0.3;
             mesh.rotation.z = elapsedTime * 0.1;
             
             const mainMesh = sectionMeshes[i - 1];
-            const angle = elapsedTime * 0.5;
-            const radius = 1.5;
-            mesh.position.x = mainMesh.position.x + Math.cos(angle) * radius;
-            mesh.position.y = mainMesh.position.y + Math.sin(angle) * radius;
-            mesh.position.z = mainMesh.position.z + Math.sin(angle * 2) * radius;
+            if (mainMesh) {
+                const angle = elapsedTime * 0.5;
+                const radius = 1.5;
+                mesh.position.x = mainMesh.position.x + Math.cos(angle) * radius;
+                mesh.position.y = mainMesh.position.y + Math.sin(angle) * radius;
+                mesh.position.z = mainMesh.position.z + Math.sin(angle * 2) * radius;
+            }
         }
     });
 
