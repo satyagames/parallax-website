@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Satya Dev | AR/VR Developer Portfolio</title>
+    <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div class="loading-screen" id="loadingScreen">
+        <div class="loader-content">
+            <div class="loader">
+                <div class="circle"></div>
+                <div class="circle"></div>
+                <div class="circle"></div>
+            </div>
+            <h2 id="loadingText">Loading Experience 0%</h2>
+        </div>
+    </div>
+
+    <canvas class="webgl"></canvas>
+
+    <div class="sections-container">
+    <!-- Hero Section -->
+    <section class="section" id="hero" data-active="true">
+        <div class="content">
+            <h1>Bringing virtual worlds to life through immersive technology.</h1>
+            <p>Hi, I'm <strong>Satya Dev</strong>, an AR/VR/MR Developer and Interactive Technologist with over 16 years of experience in gaming and emerging tech. I specialize in crafting immersive 3D experiences, digital twins, and interactive applications that bridge imagination and reality.</p>
+            <div class="cta-buttons">
+                <a href="#work" class="btn">View My Work</a>
+                <a href="https://www.linkedin.com/in/satyagames/" class="btn" target="_blank">Connect on LinkedIn</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- About Section -->
+    <section class="section" id="about" data-active="false" data-direction="down">
+        <div class="content">
+            <h2>About Me</h2>
+            <div class="about-container">
+                <div class="about-text">
+                    <p>I'm passionate about blending creativity with technology to shape next-generation digital experiences. Over the years, I've worked with cross-functional teams to design and deploy interactive simulations, digital twin solutions, and 360° walkthroughs for enterprise clients. My journey began in game development, and it evolved into crafting immersive AR/VR applications for global brands.</p>
+                    <div class="quick-facts">
+                        <div class="fact">🌍 Based in Hyderabad, India</div>
+                        <div class="fact">🎮 16+ Years of Experience</div>
+                        <div class="fact">💼 Assistant Manager at Deloitte USI</div>
+                        <div class="fact">☁️ Experienced with Cloud, Unity3D, and WebXR</div>
+                        <div class="fact">📧 satyagames@gmail.com</div>
+                    </div>
+                </div>
+                <div class="profile-pic-container">
+                    <div class="profile-pic">
+                        <img src="./assets/Satya_pic.jpg" alt="Satya Dev - AR/VR Developer">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Experience Section -->
+    <section class="section" id="experience" data-active="false" data-direction="down">
+        <div class="content">
+            <h2>Experience Timeline</h2>
+            <p class="section-intro">A journey through my professional evolution in immersive technology.</p>
+            <div class="timeline">
+                <div class="job">
+                    <span class="year">2019–Present</span>
+                    <h3>Assistant Manager — Deloitte USI</h3>
+                    <p>Leading development of enterprise solutions including:</p>
+                    <ul>
+                        <li>Financial report visualization tools</li>
+                        <li>Digital Twin systems implementation</li>
+                        <li>360° Interactive Walkthroughs</li>
+                    </ul>
+                </div>
+
+                <div class="job">
+                    <span class="year">2017–2019</span>
+                    <h3>Interactive Developer — ILenSys Technologies</h3>
+                    <p>Specialized in WebXR and digital twin solutions:</p>
+                    <ul>
+                        <li>WebXR applications development</li>
+                        <li>Real-time data integration</li>
+                        <li>Immersive 3D environments</li>
+                    </ul>
+                </div>
+
+                <div class="job">
+                    <span class="year">2015–2017</span>
+                    <h3>Lead Programmer — The Red and Black</h3>
+                    <p>Led development teams in creating:</p>
+                    <ul>
+                        <li>AAA PC game development</li>
+                        <li>Custom AR/VR applications</li>
+                        <li>Client-specific solutions</li>
+                    </ul>
+                </div>
+
+                <div class="job">
+                    <span class="year">2011–2014</span>
+                    <h3>Game Developer — YAAG Entertainment</h3>
+                    <p>Focused on innovative gaming experiences:</p>
+                    <ul>
+                        <li>AR/VR game development</li>
+                        <li>Casual gaming solutions</li>
+                        <li>Commercial game deployment</li>
+                    </ul>
+                </div>
+
+                <div class="job">
+                    <span class="year">2008–2011</span>
+                    <h3>Game Developer — Osprey Soft</h3>
+                    <p>Started my journey in game development:</p>
+                    <ul>
+                        <li>13 Cards Indian Rummy</li>
+                        <li>Mobile game development</li>
+                        <li>UX optimization</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Skills Section -->
+    <section class="section" id="skills" data-active="false" data-direction="down">
+        <div class="content">
+            <h2>Skills Snapshot</h2>
+            <div class="skills-grid">
+                <div class="skill">🎮 Unity3D</div>
+                <div class="skill">🧠 AR/VR/MR Development</div>
+                <div class="skill">☁️ Cloud Computing</div>
+                <div class="skill">💻 Scripting (C#, JavaScript)</div>
+                <div class="skill">🌐 Web Graphic Frameworks</div>
+                <div class="skill">🤝 Team Collaboration</div>
+                <div class="skill">📋 Project Management</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Education Section -->
+    <section class="section" id="education" data-active="false" data-direction="down">
+        <div class="content">
+            <h2>Education & Certification</h2>
+            <div class="education-item">
+                <h3>Bachelor of Technology (CSE, 2008)</h3>
+                <p>Foundation in computer science, algorithms, and software engineering.</p>
+            </div>
+            <div class="education-item">
+                <h3>Unity Certified Developer (2017)</h3>
+                <p>Verified expertise in professional Unity3D development and 3D interactive design.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section class="section" id="contact" data-active="false" data-direction="down">
+        <div class="content">
+            <h2>Let's Build the Future Together</h2>
+            <p>If you're looking to create immersive experiences or explore AR/VR solutions — I'd love to collaborate.</p>
+            <div class="contact-info">
+                <div class="contact-item">📧 <a href="mailto:satyagames@gmail.com">satyagames@gmail.com</a></div>
+                <div class="contact-item">🔗 <a href="https://www.linkedin.com/in/satyagames/" target="_blank">linkedin.com/in/satyagames</a></div>
+                <div class="contact-item">📍 Hyderabad, India</div>
+            </div>
+        </div>
+    </section>
+    </div>
+
+    <script type="module" src="./script.js"></script>
+</body>
+</html>
