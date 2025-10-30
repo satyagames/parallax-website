@@ -2,6 +2,12 @@
 
 A modern, interactive portfolio website featuring parallax effects, 3D backgrounds, and smooth transitions. Built with Three.js and modern web technologies.
 
+## 🌐 Live Demo
+
+**[View Live Website](https://satyagames.vercel.app/)** ✨
+
+Experience the interactive portfolio live on Vercel. The site features smooth transitions, 3D effects, and responsive design across all devices.
+
 ## 🚀 Technical Stack
 
 ### Core Technologies
@@ -188,6 +194,16 @@ The website has been tested and optimized for:
 - Gzipped files for faster loading
 - Cache-optimized resources
 - Environment-specific configurations
+
+### Vercel Deployment
+The website is deployed on Vercel for optimal performance and reliability. You can deploy your own version by:
+
+1. Fork this repository
+2. Sign up on [Vercel](https://vercel.com)
+3. Connect your GitHub repository
+4. Deploy with a single click
+
+Current deployment: [https://satyagames.vercel.app/](https://satyagames.vercel.app/)
 
 ## 🔒 Environment Variables
 
