@@ -2,14 +2,30 @@ import * as THREE from 'three';
 import gsap from 'gsap';
 
 /**
+ * Mobile Detection
+ */
+const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
+
+/**
  * Parameters
  */
 const parameters = {
     materialColor: '#64ffda',
     particleColor: '#ffffff',
-    particleCount: 1000,
+    particleCount: isMobile ? 500 : 1000, // Reduce particles on mobile for better performance
     galaxyRadius: 10
 };
+
+// Section color palette for smooth blending
+const sectionColors = [
+    '#64ffda', // Hero - cyan
+    '#7b68ee', // About - medium slate blue
+    '#ff6b9d', // Experience - pink
+    '#ffa500', // Work - orange
+    '#00ff88', // Skills - green
+    '#4169e1', // Education - royal blue
+    '#ff1493'  // Contact - deep pink
+];
 
 /**
  * Loading Manager
@@ -134,15 +150,17 @@ const materials = geometries.map(() => {
         color: parameters.materialColor,
         metalness: 0.9,
         roughness: 0.05,
-        transmission: 0.1,
-        thickness: 0.5,
+        transmission: 0.3,
+        thickness: 0.8,
         transparent: true,
-        opacity: 0.95,
+        opacity: 0.7,
         side: THREE.DoubleSide,
         envMapIntensity: 3,
         clearcoat: 1.0,
         clearcoatRoughness: 0.05,
-        premultipliedAlpha: true
+        premultipliedAlpha: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
     });
 });
 
@@ -167,12 +185,16 @@ for(let i = 0; i < 7; i++) {
     const scale = 1 - (i * 0.05);
     mesh.scale.set(scale, scale, scale);
     
+    // Set initial color
+    mesh.material.color.set(sectionColors[i]);
+    
     sectionMeshes.push(mesh);
     scene.add(mesh);
     
     // Add secondary floating object for each section
     const smallGeometry = new THREE.TorusGeometry(0.3, 0.1, 16, 32);
-    const smallMesh = new THREE.Mesh(smallGeometry, materials[i]);
+    const smallMesh = new THREE.Mesh(smallGeometry, materials[i].clone());
+    smallMesh.material.color.set(sectionColors[i]);
     smallMesh.position.x = mesh.position.x + (Math.random() - 0.5) * 2;
     smallMesh.position.y = mesh.position.y + (Math.random() - 0.5) * 2;
     smallMesh.position.z = mesh.position.z + (Math.random() - 0.5) * 2;
@@ -180,7 +202,7 @@ for(let i = 0; i < 7; i++) {
     sectionMeshes.push(smallMesh);
 }
 
-// Create floating rings
+// Create floating rings with blend modes
 const ringGeometry = new THREE.TorusGeometry(0.3, 0.04, 16, 32);
 const ringMaterial = new THREE.MeshPhysicalMaterial({
     color: parameters.materialColor,
@@ -189,12 +211,14 @@ const ringMaterial = new THREE.MeshPhysicalMaterial({
     transparent: true,
     opacity: 0.9,
     premultipliedAlpha: true,
-    envMapIntensity: 2.5
+    envMapIntensity: 2.5,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false
 });
 
 const rings = [];
 for(let i = 0; i < 5; i++) {
-    const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+    const ring = new THREE.Mesh(ringGeometry, ringMaterial.clone());
     ring.position.set(
         (Math.random() - 0.5) * 10,
         (Math.random() - 0.5) * 10,
@@ -294,15 +318,34 @@ const sizes = {
     height: window.innerHeight
 };
 
+// Handle resize with debouncing for better mobile performance
+let resizeTimeout;
 window.addEventListener('resize', () => {
-    sizes.width = window.innerWidth;
-    sizes.height = window.innerHeight;
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+        sizes.width = window.innerWidth;
+        sizes.height = window.innerHeight;
 
-    camera.aspect = sizes.width / sizes.height;
-    camera.updateProjectionMatrix();
+        camera.aspect = sizes.width / sizes.height;
+        camera.updateProjectionMatrix();
 
-    renderer.setSize(sizes.width, sizes.height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.setSize(sizes.width, sizes.height);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    }, 100);
+});
+
+// Handle orientation change on mobile
+window.addEventListener('orientationchange', () => {
+    setTimeout(() => {
+        sizes.width = window.innerWidth;
+        sizes.height = window.innerHeight;
+
+        camera.aspect = sizes.width / sizes.height;
+        camera.updateProjectionMatrix();
+
+        renderer.setSize(sizes.width, sizes.height);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    }, 200);
 });
 
 /**
@@ -321,12 +364,16 @@ cameraGroup.add(camera);
 const renderer = new THREE.WebGLRenderer({
     canvas: canvas,
     alpha: true,
-    antialias: true
+    antialias: !isMobile, // Disable antialiasing on mobile for better performance
+    powerPreference: isMobile ? 'default' : 'high-performance'
 });
 renderer.setClearColor(0x0a0a0f, 1);
 renderer.setClearAlpha(1.0);
 renderer.setSize(sizes.width, sizes.height);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobile ? 1.5 : 2)); // Lower pixel ratio on mobile
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.2;
+renderer.outputEncoding = THREE.sRGBEncoding;
 
 /**
  * Scroll
@@ -446,9 +493,49 @@ const handleScroll = (direction) => {
                 ease: 'power2.inOut'
             }, '-=0.8');
 
-        // Animate section objects
-        if (sectionMeshes[nextSection]) {
-            gsap.to(sectionMeshes[nextSection].rotation, {
+        // Animate section objects with smooth morphing and color transitions
+        const currentMeshIndex = currentSection * 2;
+        const nextMeshIndex = nextSection * 2;
+        
+        if (sectionMeshes[currentMeshIndex]) {
+            gsap.to(sectionMeshes[currentMeshIndex].material, {
+                duration: 0.8,
+                opacity: 0.3,
+                ease: 'power2.inOut'
+            });
+            gsap.to(sectionMeshes[currentMeshIndex].scale, {
+                duration: 0.8,
+                x: 0.8,
+                y: 0.8,
+                z: 0.8,
+                ease: 'power2.inOut'
+            });
+        }
+        
+        if (sectionMeshes[nextMeshIndex]) {
+            // Smooth color transition
+            const nextColor = new THREE.Color(sectionColors[nextSection]);
+            gsap.to(sectionMeshes[nextMeshIndex].material.color, {
+                duration: 1.2,
+                r: nextColor.r,
+                g: nextColor.g,
+                b: nextColor.b,
+                ease: 'power2.inOut'
+            });
+            
+            gsap.to(sectionMeshes[nextMeshIndex].material, {
+                duration: 0.8,
+                opacity: 0.7,
+                ease: 'power2.inOut'
+            });
+            gsap.to(sectionMeshes[nextMeshIndex].scale, {
+                duration: 0.8,
+                x: 1.0,
+                y: 1.0,
+                z: 1.0,
+                ease: 'power2.inOut'
+            });
+            gsap.to(sectionMeshes[nextMeshIndex].rotation, {
                 duration: 1,
                 ease: 'power2.inOut',
                 x: '+=6',
@@ -456,6 +543,40 @@ const handleScroll = (direction) => {
                 z: '+=1.5'
             });
         }
+        
+        // Blend all meshes colors smoothly
+        sectionMeshes.forEach((mesh, i) => {
+            const meshSection = Math.floor(i / 2);
+            const targetColor = new THREE.Color(sectionColors[nextSection]);
+            const blendAmount = Math.max(0, 1 - Math.abs(meshSection - nextSection) * 0.3);
+            
+            gsap.to(mesh.material.color, {
+                duration: 1.2,
+                r: targetColor.r * blendAmount + mesh.material.color.r * (1 - blendAmount * 0.3),
+                g: targetColor.g * blendAmount + mesh.material.color.g * (1 - blendAmount * 0.3),
+                b: targetColor.b * blendAmount + mesh.material.color.b * (1 - blendAmount * 0.3),
+                ease: 'power2.inOut'
+            });
+        });
+        
+        // Blend particles during transition
+        gsap.to(particles.material, {
+            duration: 0.8,
+            opacity: 0.6 + Math.random() * 0.4,
+            ease: 'power2.inOut'
+        });
+        
+        // Smooth light color transitions
+        pointLights.forEach((light, i) => {
+            const lightColor = new THREE.Color(sectionColors[nextSection]);
+            gsap.to(light.color, {
+                duration: 1.0,
+                r: lightColor.r,
+                g: lightColor.g,
+                b: lightColor.b,
+                ease: 'power2.inOut'
+            });
+        });
         
         // Update navigation dots
         document.querySelectorAll('.nav-dot').forEach((dot, index) => {
@@ -527,6 +648,49 @@ const directNavigateToSection = (targetIndex) => {
 
         // Update navigation dots immediately
         updateNavigationDots(targetIndex);
+
+        // Smooth mesh transitions
+        const currentMeshIndex = currentSection * 2;
+        const targetMeshIndex = targetIndex * 2;
+        
+        if (sectionMeshes[currentMeshIndex]) {
+            gsap.to(sectionMeshes[currentMeshIndex].material, {
+                duration: 0.8,
+                opacity: 0.3,
+                ease: 'power2.inOut'
+            });
+        }
+        
+        if (sectionMeshes[targetMeshIndex]) {
+            const targetColor = new THREE.Color(sectionColors[targetIndex]);
+            gsap.to(sectionMeshes[targetMeshIndex].material.color, {
+                duration: 1.2,
+                r: targetColor.r,
+                g: targetColor.g,
+                b: targetColor.b,
+                ease: 'power2.inOut'
+            });
+            gsap.to(sectionMeshes[targetMeshIndex].material, {
+                duration: 0.8,
+                opacity: 0.7,
+                ease: 'power2.inOut'
+            });
+        }
+        
+        // Blend all shapes smoothly
+        sectionMeshes.forEach((mesh, i) => {
+            const meshSection = Math.floor(i / 2);
+            const targetColor = new THREE.Color(sectionColors[targetIndex]);
+            const blendAmount = Math.max(0, 1 - Math.abs(meshSection - targetIndex) * 0.3);
+            
+            gsap.to(mesh.material.color, {
+                duration: 1.2,
+                r: targetColor.r * blendAmount + mesh.material.color.r * (1 - blendAmount * 0.3),
+                g: targetColor.g * blendAmount + mesh.material.color.g * (1 - blendAmount * 0.3),
+                b: targetColor.b * blendAmount + mesh.material.color.b * (1 - blendAmount * 0.3),
+                ease: 'power2.inOut'
+            });
+        });
 
         // Animate the transition
         gsap.timeline()
@@ -608,23 +772,105 @@ window.addEventListener('wheel', (event) => {
     handleScroll(direction);
 }, { passive: false });
 
+// Improved touch handling for mobile - allow scrolling inside content
+let touchStartY = 0;
+let touchStartX = 0;
+let touchStartElement = null;
+
 window.addEventListener('touchstart', (event) => {
-    startY = event.touches[0].clientY;
-}, { passive: false });
+    touchStartY = event.touches[0].clientY;
+    touchStartX = event.touches[0].clientX;
+    touchStartElement = event.target;
+}, { passive: true });
 
 window.addEventListener('touchmove', (event) => {
+    // Check if touch is inside a scrollable content area or sub-container
+    const scrollableContainers = ['.content', '.timeline', '.about-wrapper', '.projects-container'];
+    let isInsideScrollable = false;
+    
+    for (const selector of scrollableContainers) {
+        if (event.target.closest(selector)) {
+            isInsideScrollable = true;
+            break;
+        }
+    }
+    
+    if (isInsideScrollable) {
+        // Allow natural scrolling inside scrollable areas
+        return;
+    }
+    
+    // Prevent default only outside scrollable areas
     event.preventDefault();
 }, { passive: false });
 
 window.addEventListener('touchend', (event) => {
     if (isScrolling) return;
-    const endY = event.changedTouches[0].clientY;
-    const direction = startY > endY ? 1 : -1;
     
-    if (Math.abs(startY - endY) > 50) {
+    // Check if the touch is inside a scrollable sub-container first
+    const scrollableSubContainers = ['.timeline', '.about-wrapper', '.projects-container'];
+    let scrollableElement = null;
+    
+    for (const selector of scrollableSubContainers) {
+        scrollableElement = touchStartElement?.closest(selector);
+        if (scrollableElement) break;
+    }
+    
+    // If in a scrollable sub-container, handle its boundaries
+    if (scrollableElement) {
+        const scrollTop = scrollableElement.scrollTop;
+        const scrollHeight = scrollableElement.scrollHeight;
+        const clientHeight = scrollableElement.clientHeight;
+        
+        const touchEndY = event.changedTouches[0].clientY;
+        const deltaY = touchStartY - touchEndY;
+        const isScrollingDown = deltaY > 0;
+        const isScrollingUp = deltaY < 0;
+        
+        const atTop = scrollTop <= 5;
+        const atBottom = scrollTop + clientHeight >= scrollHeight - 5;
+        
+        // Only change section if at boundary with strong swipe (100px threshold)
+        if ((atTop && isScrollingUp && Math.abs(deltaY) > 100) || 
+            (atBottom && isScrollingDown && Math.abs(deltaY) > 100)) {
+            const direction = isScrollingDown ? 1 : -1;
+            handleScroll(direction);
+        }
+        return;
+    }
+    
+    // Check if inside general content area
+    const content = touchStartElement?.closest('.content');
+    if (content) {
+        const contentScrollTop = content.scrollTop;
+        const contentScrollHeight = content.scrollHeight;
+        const contentClientHeight = content.clientHeight;
+        
+        const touchEndY = event.changedTouches[0].clientY;
+        const deltaY = touchStartY - touchEndY;
+        const isScrollingDown = deltaY > 0;
+        const isScrollingUp = deltaY < 0;
+        
+        const atTop = contentScrollTop <= 5;
+        const atBottom = contentScrollTop + contentClientHeight >= contentScrollHeight - 5;
+        
+        // Only change section if at boundary with strong swipe (100px threshold)
+        if ((atTop && isScrollingUp && Math.abs(deltaY) > 100) || 
+            (atBottom && isScrollingDown && Math.abs(deltaY) > 100)) {
+            const direction = isScrollingDown ? 1 : -1;
+            handleScroll(direction);
+        }
+        return;
+    }
+    
+    // Normal section scroll when not in any content area
+    const endY = event.changedTouches[0].clientY;
+    const direction = touchStartY > endY ? 1 : -1;
+    
+    if (Math.abs(touchStartY - endY) > 50) {
         handleScroll(direction);
     }
-});
+}, { passive: true });
 
 window.addEventListener('keydown', (event) => {
     switch(event.key) {
@@ -660,14 +906,18 @@ const setupPage = () => {
             const dot = document.createElement('button');
             dot.className = 'nav-dot';
             dot.setAttribute('data-section', i.toString());
+            dot.setAttribute('aria-label', `Go to section ${i + 1}`);
             dot.style.cssText = `
-                width: 10px;
-                height: 10px;
+                width: ${isMobile ? '12px' : '10px'};
+                height: ${isMobile ? '12px' : '10px'};
+                padding: ${isMobile ? '8px' : '6px'};
                 border-radius: 50%;
                 background: ${i === currentSection ? '#64ffda' : 'rgba(255, 255, 255, 0.3)'};
-                border: none;
+                border: 2px solid ${i === currentSection ? '#64ffda' : 'transparent'};
                 cursor: pointer;
                 transition: all 0.3s ease;
+                touch-action: manipulation;
+                -webkit-tap-highlight-color: rgba(100, 255, 218, 0.3);
             `;
             dot.addEventListener('click', () => {
                 if (!isScrolling && currentSection !== i) {
@@ -716,42 +966,84 @@ const tick = () => {
     cameraGroup.position.x += (parallaxX - cameraGroup.position.x) * 3 * deltaTime;
     cameraGroup.position.y += (parallaxY - cameraGroup.position.y) * 3 * deltaTime;
 
-    // Update meshes animations
+    // Update meshes animations with smooth blending effects
     sectionMeshes.forEach((mesh, i) => {
         const isMainObject = i % 2 === 0;
+        const sectionIndex = Math.floor(i / 2);
+        const distanceFromCurrent = Math.abs(sectionIndex - currentSection);
+        
+        // Calculate blend factor based on distance from current section
+        const blendFactor = Math.max(0, 1 - distanceFromCurrent * 0.3);
+        
         if (isMainObject) {
             // Animate main objects
-            mesh.rotation.x = elapsedTime * 0.1;
-            mesh.rotation.y = elapsedTime * 0.15;
+            mesh.rotation.x = elapsedTime * 0.1 + Math.sin(elapsedTime * 0.3) * 0.1;
+            mesh.rotation.y = elapsedTime * 0.15 + Math.cos(elapsedTime * 0.4) * 0.1;
             
             const baseY = -objectsDistance * Math.floor(i/2);
-            mesh.position.y = baseY + Math.sin(elapsedTime * 0.5) * 0.2;
-            mesh.position.x += (Math.sin(elapsedTime * 0.3) * 0.1 - mesh.position.x) * deltaTime;
-            mesh.position.z += (Math.cos(elapsedTime * 0.2) * 0.1 - mesh.position.z) * deltaTime;
+            mesh.position.y = baseY + Math.sin(elapsedTime * 0.5 + i) * 0.2;
+            mesh.position.x += (Math.sin(elapsedTime * 0.3 + i) * 0.15 - mesh.position.x) * deltaTime;
+            mesh.position.z += (Math.cos(elapsedTime * 0.2 + i) * 0.15 - mesh.position.z) * deltaTime;
+            
+            // Smooth opacity blending based on distance
+            const targetOpacity = sectionIndex === currentSection ? 0.7 : 0.3 + blendFactor * 0.2;
+            mesh.material.opacity += (targetOpacity - mesh.material.opacity) * deltaTime * 2;
+            
+            // Smooth scale blending
+            const targetScale = sectionIndex === currentSection ? 1.0 : 0.8 + blendFactor * 0.15;
+            mesh.scale.x += (targetScale - mesh.scale.x) * deltaTime * 2;
+            mesh.scale.y += (targetScale - mesh.scale.y) * deltaTime * 2;
+            mesh.scale.z += (targetScale - mesh.scale.z) * deltaTime * 2;
+            
+            // Color blending based on proximity
+            const currentColor = new THREE.Color(sectionColors[currentSection]);
+            const targetColor = new THREE.Color(sectionColors[sectionIndex]);
+            mesh.material.color.lerp(targetColor, deltaTime * blendFactor * 0.5);
+            if (sectionIndex === currentSection) {
+                mesh.material.color.lerp(currentColor, deltaTime * 2);
+            }
         } else {
-            // Animate secondary objects
+            // Animate secondary objects with orbital motion
             mesh.rotation.x = elapsedTime * 0.2;
             mesh.rotation.y = elapsedTime * 0.3;
             mesh.rotation.z = elapsedTime * 0.1;
             
             const mainMesh = sectionMeshes[i - 1];
             if (mainMesh) {
-                const angle = elapsedTime * 0.5;
-                const radius = 1.5;
+                const angle = elapsedTime * 0.5 + i;
+                const radius = 1.5 + Math.sin(elapsedTime * 0.3) * 0.2;
                 mesh.position.x = mainMesh.position.x + Math.cos(angle) * radius;
                 mesh.position.y = mainMesh.position.y + Math.sin(angle) * radius;
                 mesh.position.z = mainMesh.position.z + Math.sin(angle * 2) * radius;
+                
+                // Sync opacity with main mesh for smooth blending
+                mesh.material.opacity = mainMesh.material.opacity * 0.6;
             }
         }
     });
 
     pointLights.forEach((light, i) => {
         light.position.y = - objectsDistance * i + Math.sin(elapsedTime * 0.5) * 0.5;
-        light.intensity = 0.5 + Math.sin(elapsedTime * 0.5) * 0.2;
+        const distanceFromCurrent = Math.abs(i - currentSection);
+        const lightBlend = Math.max(0, 1 - distanceFromCurrent * 0.4);
+        light.intensity = 0.3 + lightBlend * 0.4 + Math.sin(elapsedTime * 0.5) * 0.1;
     });
 
+    // Animate particles with smooth flow
     particles.rotation.y = elapsedTime * 0.05;
     particles.position.y = Math.sin(elapsedTime * 0.2) * 0.2;
+    particles.position.x = Math.cos(elapsedTime * 0.15) * 0.1;
+    
+    // Smooth rings animation for blending effect
+    rings.forEach((ring, i) => {
+        ring.rotation.x += deltaTime * 0.2 * (i % 2 === 0 ? 1 : -1);
+        ring.rotation.y += deltaTime * 0.3;
+        ring.rotation.z += deltaTime * 0.1 * (i % 2 === 0 ? -1 : 1);
+        
+        // Pulsating opacity for blend effect
+        const pulse = Math.sin(elapsedTime * 0.5 + i) * 0.5 + 0.5;
+        ring.material.opacity = 0.5 + pulse * 0.4;
+    });
 
     renderer.render(scene, camera);
     requestAnimationFrame(tick);
@@ -774,6 +1066,71 @@ setTimeout(() => {
         setupPage();
     }
 }, 3000);
+
+/**
+ * Project Section Interactivity
+ */
+
+// Project expand/collapse functionality
+const initProjectInteractivity = () => {
+    // Expand/Collapse functionality
+    const expandButtons = document.querySelectorAll('.expand-btn');
+    expandButtons.forEach(button => {
+        button.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const card = button.closest('.project-card');
+            const content = card.querySelector('.project-content');
+            
+            if (content.classList.contains('collapsed')) {
+                content.classList.remove('collapsed');
+                content.classList.add('expanded');
+            } else {
+                content.classList.remove('expanded');
+                content.classList.add('collapsed');
+            }
+        });
+    });
+
+    // Filter functionality
+    const filterButtons = document.querySelectorAll('.filter-btn');
+    const projectCards = document.querySelectorAll('.project-card');
+
+    filterButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const filter = button.getAttribute('data-filter');
+            
+            // Update active button
+            filterButtons.forEach(btn => btn.classList.remove('active'));
+            button.classList.add('active');
+
+            // Filter projects with animation
+            projectCards.forEach((card, index) => {
+                const categories = card.getAttribute('data-category');
+                
+                setTimeout(() => {
+                    if (filter === 'all' || categories.includes(filter)) {
+                        card.classList.remove('hidden');
+                        setTimeout(() => {
+                            card.style.animation = 'fadeInUp 0.5s ease forwards';
+                        }, 50);
+                    } else {
+                        card.style.animation = 'fadeOut 0.3s ease forwards';
+                        setTimeout(() => {
+                            card.classList.add('hidden');
+                        }, 300);
+                    }
+                }, index * 50);
+            });
+        });
+    });
+};
+
+// Initialize project interactivity when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initProjectInteractivity);
+} else {
+    initProjectInteractivity();
+}
 
 // Start animation
 tick();

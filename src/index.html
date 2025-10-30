@@ -2,7 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#0a0a0f">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Satya Dev | AR/VR Developer Portfolio</title>
     <link rel="stylesheet" href="./style.css">
 </head>
@@ -38,20 +41,23 @@
     <section class="section" id="about" data-active="false" data-direction="down">
         <div class="content">
             <h2>About Me</h2>
-            <div class="about-container">
-                <div class="about-text">
-                    <p>I'm passionate about blending creativity with technology to shape next-generation digital experiences. Over the years, I've worked with cross-functional teams to design and deploy interactive simulations, digital twin solutions, and 360° walkthroughs for enterprise clients. My journey began in game development, and it evolved into crafting immersive AR/VR applications for global brands.</p>
-                    <div class="quick-facts">
-                        <div class="fact">🌍 Based in Hyderabad, India</div>
-                        <div class="fact">🎮 16+ Years of Experience</div>
-                        <div class="fact">💼 Assistant Manager at Deloitte USI</div>
-                        <div class="fact">☁️ Experienced with Cloud, Unity3D, and WebXR</div>
-                        <div class="fact">📧 satyagames@gmail.com</div>
+            <p class="section-intro">Crafting immersive digital experiences at the intersection of technology and creativity.</p>
+            <div class="about-wrapper">
+                <div class="about-container">
+                    <div class="about-text">
+                        <p>I'm passionate about blending creativity with technology to shape next-generation digital experiences. Over the years, I've worked with cross-functional teams to design and deploy interactive simulations, digital twin solutions, and 360° walkthroughs for enterprise clients. My journey began in game development, and it evolved into crafting immersive AR/VR applications for global brands.</p>
+                        <div class="quick-facts">
+                            <div class="fact">🌍 Based in Hyderabad, India</div>
+                            <div class="fact">🎮 16+ Years of Experience</div>
+                            <div class="fact">💼 Assistant Manager at Deloitte USI</div>
+                            <div class="fact">☁️ Experienced with Cloud, Unity3D, and WebXR</div>
+                            <div class="fact">📧 satyagames@gmail.com</div>
+                        </div>
                     </div>
-                </div>
-                <div class="profile-pic-container">
-                    <div class="profile-pic">
-                        <img src="./assets/Satya_pic.jpg" alt="Satya Dev - AR/VR Developer">
+                    <div class="profile-pic-container">
+                        <div class="profile-pic">
+                            <img src="./assets/Satya_pic.jpg" alt="Satya Dev - AR/VR Developer">
+                        </div>
                     </div>
                 </div>
             </div>
@@ -129,127 +135,213 @@
                 <h2>Featured Projects</h2>
                 <p class="section-intro">Innovative solutions in AR/VR/MR technology</p>
             </div>
+            
+            <!-- Filter Tabs -->
+            <div class="project-filters">
+                <button class="filter-btn active" data-filter="all">
+                    All Projects <span class="filter-count">(6)</span>
+                </button>
+                <button class="filter-btn" data-filter="vr">
+                    VR <span class="filter-count">(3)</span>
+                </button>
+                <button class="filter-btn" data-filter="ar">
+                    AR <span class="filter-count">(2)</span>
+                </button>
+                <button class="filter-btn" data-filter="mr">
+                    MR <span class="filter-count">(1)</span>
+                </button>
+                <button class="filter-btn" data-filter="3d">
+                    3D/Web <span class="filter-count">(1)</span>
+                </button>
+            </div>
+            
             <div class="projects-container">
                 <div class="projects-grid">
-                <div class="project-card">
-                    <div class="project-icon">🧬</div>
-                    <h3>VR Cell Culture Training</h3>
-                    <div class="project-content">
+                <div class="project-card" data-category="vr">
+                    <div class="project-header">
+                        <div class="project-icon">🧬</div>
+                        <div class="project-title-area">
+                            <h3>VR Cell Culture Training</h3>
+                            <span class="project-category">Virtual Reality</span>
+                        </div>
+                    </div>
+                    <p class="project-summary">Immersive VR training solution for cell culture procedures</p>
+                    <div class="project-content collapsed">
                         <div class="challenge">
-                            <h4>Challenge:</h4>
+                            <h4>💡 Challenge:</h4>
                             <p>Physical training of Cell culture is a costly process with realtime equipment.</p>
                         </div>
                         <div class="solution">
-                            <h4>Solution:</h4>
+                            <h4>✅ Solution:</h4>
                             <p>Developed step by step training process in VR (Oculus Rift, Meta Quest, HTC Vive Pro, Cosmos) for trainees.</p>
                         </div>
                         <div class="tech-tags">
                             <span>VR</span>
                             <span>Oculus</span>
                             <span>HTC Vive</span>
+                            <span>Unity3D</span>
                         </div>
                     </div>
+                    <button class="expand-btn">
+                        <span class="expand-text">View Details</span>
+                        <span class="expand-icon">▼</span>
+                    </button>
                 </div>
 
-                <div class="project-card">
-                    <div class="project-icon">🔧</div>
-                    <h3>VR Service Training</h3>
-                    <div class="project-content">
+                <div class="project-card" data-category="vr">
+                    <div class="project-header">
+                        <div class="project-icon">🔧</div>
+                        <div class="project-title-area">
+                            <h3>VR Service Training</h3>
+                            <span class="project-category">Virtual Reality</span>
+                        </div>
+                    </div>
+                    <p class="project-summary">VR-based technical training for service engineers</p>
+                    <div class="project-content collapsed">
                         <div class="challenge">
-                            <h4>Challenge:</h4>
+                            <h4>💡 Challenge:</h4>
                             <p>Training service teams on handling washing machine in real time during pandemic is very challenging.</p>
                         </div>
                         <div class="solution">
-                            <h4>Solution:</h4>
+                            <h4>✅ Solution:</h4>
                             <p>Developed step by step work flows and product knowledge bases in VR to solve functional error in washing machines.</p>
                         </div>
                         <div class="tech-tags">
                             <span>VR</span>
                             <span>Training</span>
                             <span>Workflow</span>
+                            <span>Interactive</span>
                         </div>
                     </div>
+                    <button class="expand-btn">
+                        <span class="expand-text">View Details</span>
+                        <span class="expand-icon">▼</span>
+                    </button>
                 </div>
 
-                <div class="project-card">
-                    <div class="project-icon">🌡️</div>
-                    <h3>Delta K IoT Integration</h3>
-                    <div class="project-content">
+                <div class="project-card" data-category="ar mr">
+                    <div class="project-header">
+                        <div class="project-icon">🌡️</div>
+                        <div class="project-title-area">
+                            <h3>Delta K IoT Integration</h3>
+                            <span class="project-category">AR / MR / IoT</span>
+                        </div>
+                    </div>
+                    <p class="project-summary">AR/MR solution for medical refrigerator IoT control</p>
+                    <div class="project-content collapsed">
                         <div class="challenge">
-                            <h4>Challenge:</h4>
+                            <h4>💡 Challenge:</h4>
                             <p>Delta K is a medical samples storage refrigerator. China IoT is a device to connect Delta K remotely to control all attributes of a machine.</p>
                         </div>
                         <div class="solution">
-                            <h4>Solution:</h4>
-                            <p>Deployed deltaK with HTC Vice, and ChinaIoT with Augmented reality and Mixed Reality (HoloLens).</p>
+                            <h4>✅ Solution:</h4>
+                            <p>Deployed deltaK with HTC Vive, and ChinaIoT with Augmented reality and Mixed Reality (HoloLens).</p>
                         </div>
                         <div class="tech-tags">
                             <span>AR</span>
                             <span>MR</span>
                             <span>HoloLens</span>
                             <span>IoT</span>
+                            <span>HTC Vive</span>
                         </div>
                     </div>
+                    <button class="expand-btn">
+                        <span class="expand-text">View Details</span>
+                        <span class="expand-icon">▼</span>
+                    </button>
                 </div>
 
-                <div class="project-card">
-                    <div class="project-icon">🏢</div>
-                    <h3>3D ODC Visualization</h3>
-                    <div class="project-content">
+                <div class="project-card" data-category="3d">
+                    <div class="project-header">
+                        <div class="project-icon">🏢</div>
+                        <div class="project-title-area">
+                            <h3>3D ODC Visualization</h3>
+                            <span class="project-category">3D / WebGL</span>
+                        </div>
+                    </div>
+                    <p class="project-summary">Interactive 3D facility visualization platform</p>
+                    <div class="project-content collapsed">
                         <div class="challenge">
-                            <h4>Challenge:</h4>
+                            <h4>💡 Challenge:</h4>
                             <p>Showcase infrastructure and security measures of ODC to external clients before signing the agreement.</p>
                         </div>
                         <div class="solution">
-                            <h4>Solution:</h4>
+                            <h4>✅ Solution:</h4>
                             <p>Developed an interactive 3D visualization of ODC with all security features in bird-eye view.</p>
                         </div>
                         <div class="tech-tags">
                             <span>3D</span>
                             <span>Interactive</span>
                             <span>WebGL</span>
+                            <span>Three.js</span>
                         </div>
                     </div>
+                    <button class="expand-btn">
+                        <span class="expand-text">View Details</span>
+                        <span class="expand-icon">▼</span>
+                    </button>
                 </div>
 
-                <div class="project-card">
-                    <div class="project-icon">🎮</div>
-                    <h3>AR Office Etiquette Game</h3>
-                    <div class="project-content">
+                <div class="project-card" data-category="ar">
+                    <div class="project-header">
+                        <div class="project-icon">🎮</div>
+                        <div class="project-title-area">
+                            <h3>AR Office Etiquette Game</h3>
+                            <span class="project-category">Augmented Reality</span>
+                        </div>
+                    </div>
+                    <p class="project-summary">Gamified AR experience for workplace learning</p>
+                    <div class="project-content collapsed">
                         <div class="challenge">
-                            <h4>Challenge:</h4>
-                            <p>Gamified team activities in AHM.</p>
+                            <h4>💡 Challenge:</h4>
+                            <p>Gamified team activities in AHM to make learning office etiquette engaging and fun.</p>
                         </div>
                         <div class="solution">
-                            <h4>Solution:</h4>
+                            <h4>✅ Solution:</h4>
                             <p>Developed "Pokémon GO" type of game on office etiquette in AR.</p>
                         </div>
                         <div class="tech-tags">
                             <span>AR</span>
                             <span>Gaming</span>
                             <span>Unity</span>
+                            <span>Location-Based</span>
                         </div>
                     </div>
+                    <button class="expand-btn">
+                        <span class="expand-text">View Details</span>
+                        <span class="expand-icon">▼</span>
+                    </button>
                 </div>
 
-                <div class="project-card">
-                    <div class="project-icon">🎯</div>
-                    <h3>RISE VR Game</h3>
-                    <div class="project-content">
+                <div class="project-card" data-category="vr">
+                    <div class="project-header">
+                        <div class="project-icon">🎯</div>
+                        <div class="project-title-area">
+                            <h3>RISE VR Game</h3>
+                            <span class="project-category">Virtual Reality</span>
+                        </div>
+                    </div>
+                    <p class="project-summary">Multiplayer VR game for virtual team building</p>
+                    <div class="project-content collapsed">
                         <div class="challenge">
-                            <h4>Challenge:</h4>
+                            <h4>💡 Challenge:</h4>
                             <p>During pandemic unable to conduct the physical gamification activities in the RISE program.</p>
                         </div>
                         <div class="solution">
-                            <h4>Solution:</h4>
+                            <h4>✅ Solution:</h4>
                             <p>Developed a VR game in android and deployed to RISE game participants through app store/play store. This VR game was played by more than 40+ participants at the same time.</p>
                         </div>
                         <div class="tech-tags">
                             <span>VR</span>
                             <span>Android</span>
                             <span>Multiplayer</span>
+                            <span>40+ Players</span>
                         </div>
                     </div>
+                    <button class="expand-btn">
+                        <span class="expand-text">View Details</span>
+                        <span class="expand-icon">▼</span>
+                    </button>
                 </div>
                 </div>
             </div>
