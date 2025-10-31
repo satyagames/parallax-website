@@ -19,12 +19,12 @@ const parameters = {
 // Section color palette for smooth blending
 const sectionColors = [
     '#64ffda', // Hero - cyan
-    '#7b68ee', // About - medium slate blue
-    '#ff6b9d', // Experience - pink
-    '#ffa500', // Work - orange
-    '#00ff88', // Skills - green
-    '#4169e1', // Education - royal blue
-    '#ff1493'  // Contact - deep pink
+    '#64ffda', // About - cyan (uniform with TorusGeometry)
+    '#64ffda', // Experience - cyan (uniform with TorusGeometry)
+    '#64ffda', // Work - cyan (uniform with TorusGeometry)
+    '#64ffda', // Skills - cyan (uniform with TorusGeometry)
+    '#64ffda', // Education - cyan (uniform with TorusGeometry)
+    '#64ffda'  // Contact - cyan (uniform with TorusGeometry)
 ];
 
 /**

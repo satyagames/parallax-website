@@ -1763,3 +1763,14 @@ button, a, .btn, .nav-dot, .project-card, .skill, .fact, .job, .education-item {
         max-height: 120px !important;
     }
 }
+
+/* Section-specific background colors - Medium slate blue for all sections */
+#hero .content,
+#about .content,
+#experience .content,
+#work .content,
+#skills .content,
+#education .content,
+#contact .content {
+    background: rgba(123, 104, 238, 0.12) !important; /* medium slate blue tint */
+}
