@@ -40,20 +40,7 @@ loadingManager.onLoad = () => {
     isLoadingComplete = true;
 
     try {
-        // Initialize sections first
-        const sections = document.querySelectorAll('.section');
-        if (!sections.length) {
-            console.error('No sections found in the document');
-            return;
-        }
-
-        // Initialize sections and setup page
-        sections.forEach((section, index) => {
-            section.style.visibility = index === 0 ? 'visible' : 'hidden';
-            section.style.opacity = index === 0 ? '1' : '0';
-            section.setAttribute('data-active', index === 0 ? 'true' : 'false');
-        });
-
+        // Setup navigation system
         setupPage();
 
         // Handle loading screen
@@ -65,14 +52,6 @@ loadingManager.onLoad = () => {
                     duration: 0.5,
                     onComplete: () => {
                         loadingScreen.style.display = 'none';
-                        
-                        // Ensure first section is visible
-                        const firstSection = sections[0];
-                        if (firstSection) {
-                            firstSection.style.visibility = 'visible';
-                            firstSection.style.opacity = '1';
-                            firstSection.style.transform = 'translateY(0)';
-                        }
                     }
                 });
             });
@@ -166,16 +145,32 @@ const materials = geometries.map(() => {
 
 const sectionMeshes = [];
 
+// Desktop layout: Odd sections (0,2,4,6) - content LEFT, objects RIGHT
+// Even sections (1,3,5) - content RIGHT, objects LEFT
+// Mobile: objects centered
+const isMobileLayout = window.innerWidth <= 768;
+
 for(let i = 0; i < 7; i++) {
     const geometry = geometries[i];
     const mesh = new THREE.Mesh(geometry, materials[i]);
     
-    // Position objects in a more interesting pattern
-    const radius = 3;
-    const angle = (i / 6) * Math.PI * 2;
-    mesh.position.x = Math.sin(angle) * radius;
+    // Position objects on opposite side of content
+    let xPosition;
+    if (isMobileLayout) {
+        // Mobile: keep centered with slight variation
+        const angle = (i / 6) * Math.PI * 2;
+        xPosition = Math.sin(angle) * 1.5;
+    } else {
+        // Desktop: alternate left/right based on section
+        // Odd sections (0,2,4,6): content on left, objects on RIGHT (+2 to +3)
+        // Even sections (1,3,5): content on right, objects on LEFT (-2 to -3)
+        const isOddSection = i % 2 === 0;
+        xPosition = isOddSection ? 2.5 : -2.5;
+    }
+    
+    mesh.position.x = xPosition;
     mesh.position.y = - objectsDistance * i;
-    mesh.position.z = Math.cos(angle) * radius - 2;
+    mesh.position.z = -2;
     
     // Random initial rotation
     mesh.rotation.x = Math.random() * Math.PI;
@@ -195,9 +190,9 @@ for(let i = 0; i < 7; i++) {
     const smallGeometry = new THREE.TorusGeometry(0.3, 0.1, 16, 32);
     const smallMesh = new THREE.Mesh(smallGeometry, materials[i].clone());
     smallMesh.material.color.set(sectionColors[i]);
-    smallMesh.position.x = mesh.position.x + (Math.random() - 0.5) * 2;
+    smallMesh.position.x = mesh.position.x + (Math.random() - 0.5) * 1;
     smallMesh.position.y = mesh.position.y + (Math.random() - 0.5) * 2;
-    smallMesh.position.z = mesh.position.z + (Math.random() - 0.5) * 2;
+    smallMesh.position.z = mesh.position.z + (Math.random() - 0.5) * 1;
     scene.add(smallMesh);
     sectionMeshes.push(smallMesh);
 }
@@ -247,11 +242,20 @@ scene.add(secondaryLight);
 const ambientLight = new THREE.AmbientLight('#ffffff', 0.5);
 scene.add(ambientLight);
 
-// Add point lights for each section
+// Add point lights for each section - positioned with objects
 const pointLights = [];
 for(let i = 0; i < 7; i++) {
     const light = new THREE.PointLight('#64ffda', 0.5, 10);
     light.position.y = - objectsDistance * i;
+    
+    // Position lights near the objects (opposite side of content)
+    if (!isMobileLayout) {
+        const isOddSection = i % 2 === 0;
+        light.position.x = isOddSection ? 2.5 : -2.5;
+    } else {
+        light.position.x = 0;
+    }
+    
     pointLights.push(light);
     scene.add(light);
 }
@@ -345,8 +349,29 @@ window.addEventListener('orientationchange', () => {
 
         renderer.setSize(sizes.width, sizes.height);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        
+        // Update object positions on resize
+        updateObjectPositions();
     }, 200);
 });
+
+// Update object positions based on screen size
+function updateObjectPositions() {
+    const isDesktop = window.innerWidth > 768;
+    sectionMeshes.forEach((mesh, i) => {
+        const isMainObject = i % 2 === 0;
+        if (isMainObject) {
+            const sectionIndex = Math.floor(i / 2);
+            const isOddSection = sectionIndex % 2 === 0;
+            mesh.position.x = isDesktop ? (isOddSection ? 2.5 : -2.5) : 0;
+        }
+    });
+    
+    pointLights.forEach((light, i) => {
+        const isOddSection = i % 2 === 0;
+        light.position.x = isDesktop ? (isOddSection ? 2.5 : -2.5) : 0;
+    });
+}
 
 /**
  * Camera
@@ -376,560 +401,179 @@ renderer.toneMappingExposure = 1.2;
 renderer.outputEncoding = THREE.sRGBEncoding;
 
 /**
- * Scroll
+ * Native Scroll-Snap Navigation System
  */
+const scroller = document.querySelector('.sections-container');
+const sectionEls = [...document.querySelectorAll('.section')];
+const sectionIds = sectionEls.map(el => el.id);
+const totalSections = sectionEls.length;
+
 let currentSection = 0;
-const totalSections = 7; // Updated to include all 7 sections
-let isScrolling = false;
+let isSnapping = false;
 
-let startY = 0;
-const sections = document.querySelectorAll('.section');
+// Respect reduced motion preference
+const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+// Helper to get viewport height
+const vh = () => scroller ? scroller.clientHeight : window.innerHeight;
 
-// Initialize sections
-const initializeSections = () => {
-    console.log('Initializing sections');
-    sections.forEach((section, index) => {
-        // Store the original index as a data attribute
-        section.setAttribute('data-index', index.toString());
-        
-        if (index === 0) {
-            section.setAttribute('data-active', 'true');
-            section.style.transform = 'translateY(0)';
-            section.style.opacity = '1';
-            section.style.visibility = 'visible';
-            section.style.display = 'flex';
-        } else {
-            section.setAttribute('data-active', 'false');
-            section.setAttribute('data-direction', 'down');
-            section.style.transform = 'translateY(100%)';
-            section.style.opacity = '0';
-            section.style.visibility = 'hidden';
-            section.style.display = 'none';
-        }
-    });
+// Build dot navigation
+const dotNav = document.querySelector('.section-dots');
+if (dotNav && sectionIds.length > 0) {
+    dotNav.innerHTML = sectionIds.map((id, i) => 
+        `<button type="button" data-i="${i}" aria-label="Go to ${id}" title="${id}"></button>`
+    ).join('');
     
-    // Log section order for debugging
-    sections.forEach(section => {
-        console.log(`Section ${section.id}: index ${section.getAttribute('data-index')}`);
-    });
-};
-
-let isDirectNavigating = false;
-
-// Update sections visibility and position
-const updateSections = (targetSection) => {
-    if (isDirectNavigating) return;
-    
-    sections.forEach((section, index) => {
-        if (index === targetSection) {
-            section.setAttribute('data-active', 'true');
-            section.style.visibility = 'visible';
-            section.style.display = 'flex';
-            requestAnimationFrame(() => {
-                section.style.transform = 'translateY(0)';
-                section.style.opacity = '1';
-            });
-        } else {
-            section.setAttribute('data-active', 'false');
-            const direction = index < targetSection ? 'up' : 'down';
-            section.setAttribute('data-direction', direction);
-            section.style.transform = `translateY(${direction === 'up' ? '-100%' : '100%'})`;
-            section.style.opacity = '0';
-            setTimeout(() => {
-                if (section.getAttribute('data-active') === 'false') {
-                    section.style.visibility = 'hidden';
-                    section.style.display = 'none';
-                }
-            }, 800);
+    dotNav.addEventListener('click', e => {
+        const b = e.target.closest('button');
+        if (!b) return;
+        const i = +b.dataset.i;
+        if (scroller) {
+            scroller.scrollTo({ top: i * vh(), behavior: 'smooth' });
         }
     });
-};
-
-// Universal scroll handler
-const handleScroll = (direction) => {
-    if (isScrolling) return;
-    
-    const nextSection = currentSection + direction;
-    
-    if (nextSection >= 0 && nextSection < totalSections) {
-        isScrolling = true;
-        // Update navigation dots
-        updateNavigationDots(nextSection);
-        
-        const currentSectionEl = sections[currentSection];
-        const nextSectionEl = sections[nextSection];
-        
-        // Show next section before animation
-        nextSectionEl.style.visibility = 'visible';
-        nextSectionEl.style.display = 'flex';
-        nextSectionEl.style.transform = `translateY(${direction > 0 ? '100%' : '-100%'})`;
-        nextSectionEl.style.opacity = '0';
-        
-        // Use GSAP for smoother animations
-        gsap.timeline()
-            .to(currentSectionEl, {
-                y: direction > 0 ? '-100%' : '100%',
-                opacity: 0,
-                duration: 0.8,
-                ease: 'power2.inOut',
-                onStart: () => {
-                    currentSectionEl.setAttribute('data-active', 'false');
-                }
-            })
-            .to(nextSectionEl, {
-                y: '0%',
-                opacity: 1,
-                duration: 0.8,
-                ease: 'power2.inOut',
-                onStart: () => {
-                    nextSectionEl.setAttribute('data-active', 'true');
-                }
-            }, '-=0.8')
-            .to(camera.position, {
-                y: -nextSection * objectsDistance,
-                duration: 0.8,
-                ease: 'power2.inOut'
-            }, '-=0.8');
-
-        // Animate section objects with smooth morphing and color transitions
-        const currentMeshIndex = currentSection * 2;
-        const nextMeshIndex = nextSection * 2;
-        
-        if (sectionMeshes[currentMeshIndex]) {
-            gsap.to(sectionMeshes[currentMeshIndex].material, {
-                duration: 0.8,
-                opacity: 0.3,
-                ease: 'power2.inOut'
-            });
-            gsap.to(sectionMeshes[currentMeshIndex].scale, {
-                duration: 0.8,
-                x: 0.8,
-                y: 0.8,
-                z: 0.8,
-                ease: 'power2.inOut'
-            });
-        }
-        
-        if (sectionMeshes[nextMeshIndex]) {
-            // Smooth color transition
-            const nextColor = new THREE.Color(sectionColors[nextSection]);
-            gsap.to(sectionMeshes[nextMeshIndex].material.color, {
-                duration: 1.2,
-                r: nextColor.r,
-                g: nextColor.g,
-                b: nextColor.b,
-                ease: 'power2.inOut'
-            });
-            
-            gsap.to(sectionMeshes[nextMeshIndex].material, {
-                duration: 0.8,
-                opacity: 0.7,
-                ease: 'power2.inOut'
-            });
-            gsap.to(sectionMeshes[nextMeshIndex].scale, {
-                duration: 0.8,
-                x: 1.0,
-                y: 1.0,
-                z: 1.0,
-                ease: 'power2.inOut'
-            });
-            gsap.to(sectionMeshes[nextMeshIndex].rotation, {
-                duration: 1,
-                ease: 'power2.inOut',
-                x: '+=6',
-                y: '+=3',
-                z: '+=1.5'
-            });
-        }
-        
-        // Blend all meshes colors smoothly
-        sectionMeshes.forEach((mesh, i) => {
-            const meshSection = Math.floor(i / 2);
-            const targetColor = new THREE.Color(sectionColors[nextSection]);
-            const blendAmount = Math.max(0, 1 - Math.abs(meshSection - nextSection) * 0.3);
-            
-            gsap.to(mesh.material.color, {
-                duration: 1.2,
-                r: targetColor.r * blendAmount + mesh.material.color.r * (1 - blendAmount * 0.3),
-                g: targetColor.g * blendAmount + mesh.material.color.g * (1 - blendAmount * 0.3),
-                b: targetColor.b * blendAmount + mesh.material.color.b * (1 - blendAmount * 0.3),
-                ease: 'power2.inOut'
-            });
-        });
-        
-        // Blend particles during transition
-        gsap.to(particles.material, {
-            duration: 0.8,
-            opacity: 0.6 + Math.random() * 0.4,
-            ease: 'power2.inOut'
-        });
-        
-        // Smooth light color transitions
-        pointLights.forEach((light, i) => {
-            const lightColor = new THREE.Color(sectionColors[nextSection]);
-            gsap.to(light.color, {
-                duration: 1.0,
-                r: lightColor.r,
-                g: lightColor.g,
-                b: lightColor.b,
-                ease: 'power2.inOut'
-            });
-        });
-        
-        // Update navigation dots
-        document.querySelectorAll('.nav-dot').forEach((dot, index) => {
-            dot.style.background = index === nextSection ? '#64ffda' : 'rgba(255, 255, 255, 0.3)';
-        });
-        
-        // Reset after animation
-        setTimeout(() => {
-            currentSectionEl.style.visibility = 'hidden';
-            currentSectionEl.style.display = 'none';
-            isScrolling = false;
-            currentSection = nextSection;
-        }, 800);
-    } else {
-        isScrolling = false;
-    }
-};
-
-// Define section order mapping
-const sectionOrder = {
-    'hero': 0,
-    'about': 1,
-    'experience': 2,
-    'work': 3,
-    'skills': 4,
-    'education': 5,
-    'contact': 6
-};
-
-// Handle section navigation
-const navigateToSection = (targetId) => {
-    const targetSection = document.getElementById(targetId);
-    if (targetSection) {
-        const targetIndex = sectionOrder[targetId];
-        if (targetIndex !== undefined && currentSection !== targetIndex) {
-            const steps = targetIndex - currentSection;
-            const direction = steps > 0 ? 1 : -1;
-            const stepsCount = Math.abs(steps);
-            
-            let currentStep = 0;
-            const scrollInterval = setInterval(() => {
-                if (currentStep < stepsCount && !isScrolling) {
-                    handleScroll(direction);
-                    currentStep++;
-                } else {
-                    clearInterval(scrollInterval);
-                }
-            }, 800);
-        }
-    }
-};
-
-// Direct navigation function
-const updateNavigationDots = (index) => {
-    document.querySelectorAll('.nav-dot').forEach((dot, i) => {
-        dot.style.background = i === index ? '#64ffda' : 'rgba(255, 255, 255, 0.3)';
-    });
-};
-
-const directNavigateToSection = (targetIndex) => {
-    if (targetIndex !== currentSection) {
-        // Store current section for animation
-        const currentSectionEl = sections[currentSection];
-        const targetSectionEl = sections[targetIndex];
-
-        // Show target section
-        targetSectionEl.style.visibility = 'visible';
-        targetSectionEl.style.display = 'flex';
-
-        // Update navigation dots immediately
-        updateNavigationDots(targetIndex);
-
-        // Smooth mesh transitions
-        const currentMeshIndex = currentSection * 2;
-        const targetMeshIndex = targetIndex * 2;
-        
-        if (sectionMeshes[currentMeshIndex]) {
-            gsap.to(sectionMeshes[currentMeshIndex].material, {
-                duration: 0.8,
-                opacity: 0.3,
-                ease: 'power2.inOut'
-            });
-        }
-        
-        if (sectionMeshes[targetMeshIndex]) {
-            const targetColor = new THREE.Color(sectionColors[targetIndex]);
-            gsap.to(sectionMeshes[targetMeshIndex].material.color, {
-                duration: 1.2,
-                r: targetColor.r,
-                g: targetColor.g,
-                b: targetColor.b,
-                ease: 'power2.inOut'
-            });
-            gsap.to(sectionMeshes[targetMeshIndex].material, {
-                duration: 0.8,
-                opacity: 0.7,
-                ease: 'power2.inOut'
-            });
-        }
-        
-        // Blend all shapes smoothly
-        sectionMeshes.forEach((mesh, i) => {
-            const meshSection = Math.floor(i / 2);
-            const targetColor = new THREE.Color(sectionColors[targetIndex]);
-            const blendAmount = Math.max(0, 1 - Math.abs(meshSection - targetIndex) * 0.3);
-            
-            gsap.to(mesh.material.color, {
-                duration: 1.2,
-                r: targetColor.r * blendAmount + mesh.material.color.r * (1 - blendAmount * 0.3),
-                g: targetColor.g * blendAmount + mesh.material.color.g * (1 - blendAmount * 0.3),
-                b: targetColor.b * blendAmount + mesh.material.color.b * (1 - blendAmount * 0.3),
-                ease: 'power2.inOut'
-            });
-        });
-
-        // Animate the transition
-        gsap.timeline()
-            .to(currentSectionEl, {
-                y: targetIndex > currentSection ? '-100%' : '100%',
-                opacity: 0,
-                duration: 0.8,
-                ease: 'power2.inOut',
-                onStart: () => {
-                    currentSectionEl.setAttribute('data-active', 'false');
-                }
-            })
-            .to(targetSectionEl, {
-                y: '0%',
-                opacity: 1,
-                duration: 0.8,
-                ease: 'power2.inOut',
-                onStart: () => {
-                    targetSectionEl.setAttribute('data-active', 'true');
-                }
-            }, '-=0.8')
-            .to(camera.position, {
-                y: -targetIndex * objectsDistance,
-                duration: 0.8,
-                ease: 'power2.inOut',
-                onComplete: () => {
-                    currentSection = targetIndex;
-                    currentSectionEl.style.visibility = 'hidden';
-                    currentSectionEl.style.display = 'none';
-                }
-            }, '-=0.8');
-    }
-};
-
-// Handle click events for navigation
-const initializeNavigation = () => {
-    // Handle "View My Work" button specifically
-    const workButton = document.querySelector('a[href="#work"]');
-    if (workButton) {
-        workButton.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            console.log('Work button clicked');
-            // Get the work section index
-            const workSection = document.getElementById('work');
-            const workIndex = Array.from(sections).indexOf(workSection);
-            console.log('Work section index:', workIndex);
-            directNavigateToSection(workIndex);
-        });
-    }
-
-    // Handle all other section navigation links
-    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-        if (anchor !== workButton) {
-            anchor.addEventListener('click', (e) => {
-                e.preventDefault();
-                const targetId = anchor.getAttribute('href').substring(1);
-                const targetSection = document.getElementById(targetId);
-                if (targetSection) {
-                    const targetIndex = Array.from(sections).indexOf(targetSection);
-                    directNavigateToSection(targetIndex);
-                }
-            });
-        }
-    });
-};
-
-// Initialize navigation when DOM is loaded
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializeNavigation);
-} else {
-    initializeNavigation();
 }
 
-// Scroll event listeners
-window.addEventListener('wheel', (event) => {
-    event.preventDefault();
-    const direction = event.deltaY > 0 ? 1 : -1;
-    handleScroll(direction);
-}, { passive: false });
+// Announce section changes and update dot nav
+function setActiveSection(i) {
+    currentSection = Math.max(0, Math.min(totalSections - 1, i));
+    
+    // Update dot nav
+    if (dotNav) {
+        dotNav.querySelectorAll('button').forEach((b, bi) => {
+            b.setAttribute('aria-current', bi === currentSection ? 'true' : 'false');
+        });
+    }
+    
+    // Announce to screen readers
+    const status = document.getElementById('sr-status');
+    if (status) {
+        status.textContent = `Section ${currentSection + 1} of ${totalSections}: ${sectionIds[currentSection]}`;
+    }
+    
+    // Update URL hash
+    if (history.replaceState) {
+        history.replaceState(null, '', `#${sectionIds[currentSection]}`);
+    }
+}
 
-// Improved touch handling for mobile - allow scrolling inside content
+// Scroll-driven camera and color updates
+if (scroller) {
+    scroller.addEventListener('scroll', () => {
+        const y = scroller.scrollTop;
+        const indexFloat = y / vh(); // 0..6 continuous
+        
+        // Smoothly drive camera position
+        const targetCamY = -indexFloat * objectsDistance;
+        // Camera lerping happens in tick() function
+        
+        // Update active section when crossing threshold
+        const newIndex = Math.round(indexFloat);
+        if (newIndex !== currentSection) {
+            setActiveSection(newIndex);
+        }
+    }, { passive: true });
+}
+
+// Velocity-aware snap on pointer end (mobile polish)
 let touchStartY = 0;
-let touchStartX = 0;
-let touchStartElement = null;
+let lastY = 0;
+let lastT = 0;
+let velocity = 0;
 
-window.addEventListener('touchstart', (event) => {
-    touchStartY = event.touches[0].clientY;
-    touchStartX = event.touches[0].clientX;
-    touchStartElement = event.target;
-}, { passive: true });
+if (scroller) {
+    scroller.addEventListener('pointerdown', e => {
+        lastY = touchStartY = e.clientY;
+        lastT = performance.now();
+        velocity = 0;
+    }, { passive: true });
 
-window.addEventListener('touchmove', (event) => {
-    // Check if touch is inside a scrollable content area or sub-container
-    const scrollableContainers = ['.content', '.timeline', '.about-wrapper', '.projects-container'];
-    let isInsideScrollable = false;
-    
-    for (const selector of scrollableContainers) {
-        if (event.target.closest(selector)) {
-            isInsideScrollable = true;
-            break;
+    scroller.addEventListener('pointermove', e => {
+        const now = performance.now();
+        const dy = e.clientY - lastY;
+        const dt = now - lastT || 1;
+        velocity = dy / dt; // px per ms
+        lastY = e.clientY;
+        lastT = now;
+    }, { passive: true });
+
+    scroller.addEventListener('pointerup', () => {
+        if (prefersReduced || isSnapping) return; // Let browser snap if reduced motion
+        
+        const iFloat = scroller.scrollTop / vh();
+        let target = Math.round(iFloat);
+
+        const progress = iFloat - Math.floor(iFloat); // 0..1 into current section
+        const v = -velocity; // positive when swiping up
+
+        // Velocity and progress thresholds
+        const velocityThresh = 0.45; // px/ms
+        const progressThresh = 0.48;
+        
+        if (v > velocityThresh) {
+            target = Math.floor(iFloat) + 1;
+        } else if (v < -velocityThresh) {
+            target = Math.ceil(iFloat) - 1;
+        } else if (progress > progressThresh) {
+            target = Math.ceil(iFloat);
+        } else {
+            target = Math.floor(iFloat);
         }
-    }
-    
-    if (isInsideScrollable) {
-        // Allow natural scrolling inside scrollable areas
-        return;
-    }
-    
-    // Prevent default only outside scrollable areas
-    event.preventDefault();
-}, { passive: false });
 
-window.addEventListener('touchend', (event) => {
-    if (isScrolling) return;
-    
-    // Check if the touch is inside a scrollable sub-container first
-    const scrollableSubContainers = ['.timeline', '.about-wrapper', '.projects-container'];
-    let scrollableElement = null;
-    
-    for (const selector of scrollableSubContainers) {
-        scrollableElement = touchStartElement?.closest(selector);
-        if (scrollableElement) break;
-    }
-    
-    // If in a scrollable sub-container, handle its boundaries
-    if (scrollableElement) {
-        const scrollTop = scrollableElement.scrollTop;
-        const scrollHeight = scrollableElement.scrollHeight;
-        const clientHeight = scrollableElement.clientHeight;
+        target = Math.max(0, Math.min(totalSections - 1, target));
         
-        const touchEndY = event.changedTouches[0].clientY;
-        const deltaY = touchStartY - touchEndY;
-        const isScrollingDown = deltaY > 0;
-        const isScrollingUp = deltaY < 0;
+        isSnapping = true;
+        scroller.scrollTo({ top: target * vh(), behavior: 'smooth' });
         
-        const atTop = scrollTop <= 5;
-        const atBottom = scrollTop + clientHeight >= scrollHeight - 5;
-        
-        // Only change section if at boundary with strong swipe (100px threshold)
-        if ((atTop && isScrollingUp && Math.abs(deltaY) > 100) || 
-            (atBottom && isScrollingDown && Math.abs(deltaY) > 100)) {
-            const direction = isScrollingDown ? 1 : -1;
-            handleScroll(direction);
+        // Optional haptic feedback
+        if (navigator.vibrate && target !== currentSection) {
+            navigator.vibrate(10);
         }
-        return;
-    }
-    
-    // Check if inside general content area
-    const content = touchStartElement?.closest('.content');
-    if (content) {
-        const contentScrollTop = content.scrollTop;
-        const contentScrollHeight = content.scrollHeight;
-        const contentClientHeight = content.clientHeight;
         
-        const touchEndY = event.changedTouches[0].clientY;
-        const deltaY = touchStartY - touchEndY;
-        const isScrollingDown = deltaY > 0;
-        const isScrollingUp = deltaY < 0;
-        
-        const atTop = contentScrollTop <= 5;
-        const atBottom = contentScrollTop + contentClientHeight >= contentScrollHeight - 5;
-        
-        // Only change section if at boundary with strong swipe (100px threshold)
-        if ((atTop && isScrollingUp && Math.abs(deltaY) > 100) || 
-            (atBottom && isScrollingDown && Math.abs(deltaY) > 100)) {
-            const direction = isScrollingDown ? 1 : -1;
-            handleScroll(direction);
-        }
-        return;
-    }
-    
-    // Normal section scroll when not in any content area
-    const endY = event.changedTouches[0].clientY;
-    const direction = touchStartY > endY ? 1 : -1;
-    
-    if (Math.abs(touchStartY - endY) > 50) {
-        handleScroll(direction);
-    }
-}, { passive: true });
+        setTimeout(() => { isSnapping = false; }, 380);
+    }, { passive: true });
+}
 
-window.addEventListener('keydown', (event) => {
-    switch(event.key) {
-        case 'ArrowDown':
-        case 'PageDown':
-            handleScroll(1);
-            break;
-        case 'ArrowUp':
-        case 'PageUp':
-            handleScroll(-1);
-            break;
+// Deep-link on load: if hash exists, jump to section
+const initializeDeepLink = () => {
+    const hash = location.hash.slice(1);
+    const hashIndex = Math.max(0, sectionIds.indexOf(hash));
+    if (hashIndex > 0 && scroller) {
+        // Use instant behavior on load
+        scroller.scrollTo({ top: hashIndex * vh(), behavior: 'instant' });
+        setActiveSection(hashIndex);
+    } else {
+        setActiveSection(0);
     }
-});
+};
+
+// Convert internal anchor links to smooth scrolls
+const initializeAnchorLinks = () => {
+    document.querySelectorAll('a[href^="#"]').forEach(a => {
+        a.addEventListener('click', e => {
+            const id = a.getAttribute('href').slice(1);
+            const idx = sectionIds.indexOf(id);
+            if (idx > -1 && scroller) {
+                e.preventDefault();
+                scroller.scrollTo({ top: idx * vh(), behavior: 'smooth' });
+            }
+        });
+    });
+};
+
+// REMOVED: Old manual scroll handler - now using native scroll-snap
+// All section transitions handled by browser + smooth camera following in tick()
 
 // Setup page with navigation
 const setupPage = () => {
-    if (!document.querySelector('.section-nav')) {
-        const nav = document.createElement('div');
-        nav.className = 'section-nav';
-        nav.style.cssText = `
-            position: fixed;
-            right: 20px;
-            top: 50%;
-            transform: translateY(-50%);
-            z-index: 1000;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        `;
-
-        // Create a dot for each section
-        for (let i = 0; i < totalSections; i++) {
-            const dot = document.createElement('button');
-            dot.className = 'nav-dot';
-            dot.setAttribute('data-section', i.toString());
-            dot.setAttribute('aria-label', `Go to section ${i + 1}`);
-            dot.style.cssText = `
-                width: ${isMobile ? '12px' : '10px'};
-                height: ${isMobile ? '12px' : '10px'};
-                padding: ${isMobile ? '8px' : '6px'};
-                border-radius: 50%;
-                background: ${i === currentSection ? '#64ffda' : 'rgba(255, 255, 255, 0.3)'};
-                border: 2px solid ${i === currentSection ? '#64ffda' : 'transparent'};
-                cursor: pointer;
-                transition: all 0.3s ease;
-                touch-action: manipulation;
-                -webkit-tap-highlight-color: rgba(100, 255, 218, 0.3);
-            `;
-            dot.addEventListener('click', () => {
-                if (!isScrolling && currentSection !== i) {
-                    directNavigateToSection(i);
-                }
-            });
-            nav.appendChild(dot);
-        }
-
-        document.body.appendChild(nav);
-    }
+    // Initialize anchor links and deep-linking
+    initializeDeepLink();
+    initializeAnchorLinks();
 };
+
+// REMOVED: ALL OLD NAVIGATION CODE - NOW USES SCROLL-SNAP
+// All old GSAP section animations, handleScroll, nav dot creation removed
+// New system: native browser scroll-snap + velocity-aware pointer handlers above
 
 /**
  * Animation
@@ -952,12 +596,17 @@ const tick = () => {
     const deltaTime = elapsedTime - previousTime;
     previousTime = elapsedTime;
 
-    // Update camera position for section transitions
-    const targetCameraY = -currentSection * objectsDistance;
+    // Update camera position from scroll - smooth continuous following
+    let indexFloat = currentSection; // Default to discrete section
+    if (scroller) {
+        // Calculate continuous scroll position (0..6 for 7 sections)
+        indexFloat = scroller.scrollTop / vh();
+    }
+    const targetCameraY = -indexFloat * objectsDistance;
     camera.position.y += (targetCameraY - camera.position.y) * 5 * deltaTime;
     
     // Calculate and apply camera rotation based on scroll progress
-    const progress = currentSection / (totalSections - 1);
+    const progress = indexFloat / (totalSections - 1);
     camera.rotation.z = Math.sin(progress * Math.PI) * 0.1;
 
     // Apply parallax effect
@@ -976,14 +625,20 @@ const tick = () => {
         const blendFactor = Math.max(0, 1 - distanceFromCurrent * 0.3);
         
         if (isMainObject) {
+            // Determine base X position (alternating left/right)
+            const isDesktop = window.innerWidth > 768;
+            const isOddSection = sectionIndex % 2 === 0;
+            const baseX = isDesktop ? (isOddSection ? 2.5 : -2.5) : 0;
+            
             // Animate main objects
             mesh.rotation.x = elapsedTime * 0.1 + Math.sin(elapsedTime * 0.3) * 0.1;
             mesh.rotation.y = elapsedTime * 0.15 + Math.cos(elapsedTime * 0.4) * 0.1;
             
             const baseY = -objectsDistance * Math.floor(i/2);
             mesh.position.y = baseY + Math.sin(elapsedTime * 0.5 + i) * 0.2;
-            mesh.position.x += (Math.sin(elapsedTime * 0.3 + i) * 0.15 - mesh.position.x) * deltaTime;
-            mesh.position.z += (Math.cos(elapsedTime * 0.2 + i) * 0.15 - mesh.position.z) * deltaTime;
+            // Keep X near base position with subtle oscillation
+            mesh.position.x = baseX + Math.sin(elapsedTime * 0.3 + i) * 0.15;
+            mesh.position.z = -2 + Math.cos(elapsedTime * 0.2 + i) * 0.15;
             
             // Smooth opacity blending based on distance
             const targetOpacity = sectionIndex === currentSection ? 0.7 : 0.3 + blendFactor * 0.2;
@@ -1023,6 +678,12 @@ const tick = () => {
     });
 
     pointLights.forEach((light, i) => {
+        // Keep lights positioned on the same side as objects
+        const isDesktop = window.innerWidth > 768;
+        const isOddSection = i % 2 === 0;
+        const baseX = isDesktop ? (isOddSection ? 2.5 : -2.5) : 0;
+        
+        light.position.x = baseX;
         light.position.y = - objectsDistance * i + Math.sin(elapsedTime * 0.5) * 0.5;
         const distanceFromCurrent = Math.abs(i - currentSection);
         const lightBlend = Math.max(0, 1 - distanceFromCurrent * 0.4);
@@ -1062,7 +723,31 @@ setTimeout(() => {
         if (loadingScreen) {
             loadingScreen.style.display = 'none';
         }
-        initializeSections();
+        setupPage();
+    }
+}, 3000);
+
+/**
+ * Project Section Interactivity
+ * (Defined below after loading manager)
+ */
+
+// Start animation
+tick();
+
+// Initialize everything
+if (!loadingManager.isStarted) {
+    loadingManager.onLoad();
+}
+
+// Failsafe initialization
+setTimeout(() => {
+    if (!isLoadingComplete) {
+        console.log('Force initializing page...');
+        const loadingScreen = document.querySelector('.loading-screen');
+        if (loadingScreen) {
+            loadingScreen.style.display = 'none';
+        }
         setupPage();
     }
 }, 3000);
