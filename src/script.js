@@ -1,31 +1,31 @@
 import * as THREE from 'three';
 import gsap from 'gsap';
+import { SceneOrchestrator } from './js/hero/SceneOrchestrator.js';
+import { SECTION_PROFILES } from './js/hero/palettes.js';
+import { CursorController } from './js/hero/input/CursorController.js';
+import { ProfilerHUD, setupHUDToggle } from './js/perf/ProfilerHUD.js';
 
 /**
- * Mobile Detection
+ * Mobile Detection (Enhanced)
  */
 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
 
+// Detect specific mobile features for optimization
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+const isAndroid = /Android/.test(navigator.userAgent);
+const isLowEndDevice = isMobile && (navigator.hardwareConcurrency <= 4 || navigator.deviceMemory <= 4);
+
 /**
- * Parameters
+ * Parameters (Mobile-Optimized)
  */
 const parameters = {
     materialColor: '#64ffda',
     particleColor: '#ffffff',
-    particleCount: isMobile ? 500 : 1000, // Reduce particles on mobile for better performance
+    particleCount: isMobile ? (isLowEndDevice ? 300 : 500) : 1000, // Extra reduction for low-end devices
     galaxyRadius: 10
 };
 
-// Section color palette for smooth blending
-const sectionColors = [
-    '#64ffda', // Hero - cyan
-    '#64ffda', // About - cyan (uniform with TorusGeometry)
-    '#64ffda', // Experience - cyan (uniform with TorusGeometry)
-    '#64ffda', // Work - cyan (uniform with TorusGeometry)
-    '#64ffda', // Skills - cyan (uniform with TorusGeometry)
-    '#64ffda', // Education - cyan (uniform with TorusGeometry)
-    '#64ffda'  // Contact - cyan (uniform with TorusGeometry)
-];
+// Neural network will be initialized after DOM is ready
 
 /**
  * Loading Manager
@@ -114,151 +114,21 @@ const material = new THREE.MeshPhysicalMaterial({
 
 // Objects
 const objectsDistance = 4;
-const geometries = [
-    new THREE.TorusGeometry(1, 0.3, 32, 100), // Hero
-    new THREE.OctahedronGeometry(1.2, 1), // About
-    new THREE.TorusKnotGeometry(0.8, 0.3, 100, 16), // Experience
-    new THREE.IcosahedronGeometry(1, 0), // Work
-    new THREE.ConeGeometry(0.8, 1.5, 32), // Skills
-    new THREE.SphereGeometry(1, 32, 32), // Education
-    new THREE.DodecahedronGeometry(1, 0) // Contact
-];
 
-const materials = geometries.map(() => {
-    return new THREE.MeshPhysicalMaterial({
-        color: parameters.materialColor,
-        metalness: 0.9,
-        roughness: 0.05,
-        transmission: 0.3,
-        thickness: 0.8,
-        transparent: true,
-        opacity: 0.7,
-        side: THREE.DoubleSide,
-        envMapIntensity: 3,
-        clearcoat: 1.0,
-        clearcoatRoughness: 0.05,
-        premultipliedAlpha: true,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false
-    });
-});
-
-const sectionMeshes = [];
-
-// Desktop layout: Odd sections (0,2,4,6) - content LEFT, objects RIGHT
-// Even sections (1,3,5) - content RIGHT, objects LEFT
-// Mobile: objects centered
-const isMobileLayout = window.innerWidth <= 768;
-
-for(let i = 0; i < 7; i++) {
-    const geometry = geometries[i];
-    const mesh = new THREE.Mesh(geometry, materials[i]);
-    
-    // Position objects on opposite side of content
-    let xPosition;
-    if (isMobileLayout) {
-        // Mobile: keep centered with slight variation
-        const angle = (i / 6) * Math.PI * 2;
-        xPosition = Math.sin(angle) * 1.5;
-    } else {
-        // Desktop: alternate left/right based on section
-        // Odd sections (0,2,4,6): content on left, objects on RIGHT (+2 to +3)
-        // Even sections (1,3,5): content on right, objects on LEFT (-2 to -3)
-        const isOddSection = i % 2 === 0;
-        xPosition = isOddSection ? 2.5 : -2.5;
-    }
-    
-    mesh.position.x = xPosition;
-    mesh.position.y = - objectsDistance * i;
-    mesh.position.z = -2;
-    
-    // Random initial rotation
-    mesh.rotation.x = Math.random() * Math.PI;
-    mesh.rotation.y = Math.random() * Math.PI;
-    
-    // Scale based on section
-    const scale = 1 - (i * 0.05);
-    mesh.scale.set(scale, scale, scale);
-    
-    // Set initial color
-    mesh.material.color.set(sectionColors[i]);
-    
-    sectionMeshes.push(mesh);
-    scene.add(mesh);
-    
-    // Add secondary floating object for each section
-    const smallGeometry = new THREE.TorusGeometry(0.3, 0.1, 16, 32);
-    const smallMesh = new THREE.Mesh(smallGeometry, materials[i].clone());
-    smallMesh.material.color.set(sectionColors[i]);
-    smallMesh.position.x = mesh.position.x + (Math.random() - 0.5) * 1;
-    smallMesh.position.y = mesh.position.y + (Math.random() - 0.5) * 2;
-    smallMesh.position.z = mesh.position.z + (Math.random() - 0.5) * 1;
-    scene.add(smallMesh);
-    sectionMeshes.push(smallMesh);
-}
-
-// Create floating rings with blend modes
-const ringGeometry = new THREE.TorusGeometry(0.3, 0.04, 16, 32);
-const ringMaterial = new THREE.MeshPhysicalMaterial({
-    color: parameters.materialColor,
-    metalness: 1,
-    roughness: 0.05,
-    transparent: true,
-    opacity: 0.9,
-    premultipliedAlpha: true,
-    envMapIntensity: 2.5,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false
-});
-
-const rings = [];
-for(let i = 0; i < 5; i++) {
-    const ring = new THREE.Mesh(ringGeometry, ringMaterial.clone());
-    ring.position.set(
-        (Math.random() - 0.5) * 10,
-        (Math.random() - 0.5) * 10,
-        (Math.random() - 0.5) * 10
-    );
-    ring.rotation.set(
-        Math.random() * Math.PI,
-        Math.random() * Math.PI,
-        Math.random() * Math.PI
-    );
-    rings.push(ring);
-    scene.add(ring);
-}
+// Scene Orchestrator - cinematic dual-layer hero
+let orchestrator = null;
 
 /**
- * Lights
+ * Lights - Will be added to orchestrator scene after initialization
  */
 const directionalLight = new THREE.DirectionalLight('#ffffff', 2);
 directionalLight.position.set(1, 1, 0);
-scene.add(directionalLight);
 
 const secondaryLight = new THREE.DirectionalLight('#64ffda', 1);
 secondaryLight.position.set(-1, -1, -1);
-scene.add(secondaryLight);
 
-const ambientLight = new THREE.AmbientLight('#ffffff', 0.5);
-scene.add(ambientLight);
-
-// Add point lights for each section - positioned with objects
-const pointLights = [];
-for(let i = 0; i < 7; i++) {
-    const light = new THREE.PointLight('#64ffda', 0.5, 10);
-    light.position.y = - objectsDistance * i;
-    
-    // Position lights near the objects (opposite side of content)
-    if (!isMobileLayout) {
-        const isOddSection = i % 2 === 0;
-        light.position.x = isOddSection ? 2.5 : -2.5;
-    } else {
-        light.position.x = 0;
-    }
-    
-    pointLights.push(light);
-    scene.add(light);
-}
+// Orchestrator has its own ambient light, so we can skip this
+// const ambientLight = new THREE.AmbientLight('#ffffff', 0.5);
 
 /**
  * Particles
@@ -308,7 +178,7 @@ const generateGalaxy = () => {
     });
 
     const particles = new THREE.Points(particlesGeometry, particlesMaterial);
-    scene.add(particles);
+    // Don't add to scene yet - orchestrator will add it
     return particles;
 };
 
@@ -335,6 +205,11 @@ window.addEventListener('resize', () => {
 
         renderer.setSize(sizes.width, sizes.height);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        
+        // Update orchestrator on resize
+        if (orchestrator) {
+            orchestrator.resize();
+        }
     }, 100);
 });
 
@@ -348,39 +223,60 @@ window.addEventListener('orientationchange', () => {
         camera.updateProjectionMatrix();
 
         renderer.setSize(sizes.width, sizes.height);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        const maxDPR = isMobile ? (isLowEndDevice ? 1.0 : 1.5) : 2.0;
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, maxDPR));
         
         // Update object positions on resize
-        updateObjectPositions();
+        // Neural network handles its own positioning
     }, 200);
 });
 
-// Update object positions based on screen size
-function updateObjectPositions() {
-    const isDesktop = window.innerWidth > 768;
-    sectionMeshes.forEach((mesh, i) => {
-        const isMainObject = i % 2 === 0;
-        if (isMainObject) {
-            const sectionIndex = Math.floor(i / 2);
-            const isOddSection = sectionIndex % 2 === 0;
-            mesh.position.x = isDesktop ? (isOddSection ? 2.5 : -2.5) : 0;
+// Mobile memory pressure detection (Chrome/Safari)
+if (isMobile && 'memory' in performance) {
+    let lastMemoryCheck = 0;
+    const checkMemoryPressure = () => {
+        const now = performance.now();
+        if (now - lastMemoryCheck < 5000) return; // Check every 5 seconds
+        lastMemoryCheck = now;
+        
+        const memInfo = performance.memory;
+        const usedPercent = memInfo.usedJSHeapSize / memInfo.jsHeapSizeLimit;
+        
+        // If using >80% of heap, reduce quality
+        if (usedPercent > 0.8 && orchestrator) {
+            console.warn('High memory usage detected, reducing quality');
+            // Could trigger layer cleanup or quality reduction here
         }
-    });
+    };
     
-    pointLights.forEach((light, i) => {
-        const isOddSection = i % 2 === 0;
-        light.position.x = isDesktop ? (isOddSection ? 2.5 : -2.5) : 0;
-    });
+    setInterval(checkMemoryPressure, 5000);
 }
+
+// iOS-specific optimizations
+if (isIOS) {
+    // Prevent iOS bounce scroll
+    document.body.style.overscrollBehavior = 'none';
+    
+    // Handle iOS focus issues
+    document.addEventListener('touchstart', () => {}, { passive: true });
+}
+
+// Android-specific optimizations  
+if (isAndroid) {
+    // Android Chrome may need explicit GPU hints
+    document.body.style.transform = 'translateZ(0)';
+}
+
+// OLD updateObjectPositions() removed - Neural network handles positioning
 
 /**
  * Camera
  */
 const cameraGroup = new THREE.Group();
-scene.add(cameraGroup);
+// Don't add to old scene - orchestrator will use its own scene
 
 const camera = new THREE.PerspectiveCamera(35, sizes.width / sizes.height, 0.1, 100);
-camera.position.z = 6;
+camera.position.z = 10; // Further back for better orchestrator view
 cameraGroup.add(camera);
 
 /**
@@ -390,15 +286,70 @@ const renderer = new THREE.WebGLRenderer({
     canvas: canvas,
     alpha: true,
     antialias: !isMobile, // Disable antialiasing on mobile for better performance
-    powerPreference: isMobile ? 'default' : 'high-performance'
+    powerPreference: isMobile ? 'default' : 'high-performance',
+    stencil: false, // Disable stencil buffer on mobile (not needed)
+    depth: true,
+    logarithmicDepthBuffer: false, // Disable for better mobile performance
+    precision: isMobile ? 'mediump' : 'highp' // Use medium precision on mobile
 });
 renderer.setClearColor(0x0a0a0f, 1);
 renderer.setClearAlpha(1.0);
 renderer.setSize(sizes.width, sizes.height);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobile ? 1.5 : 2)); // Lower pixel ratio on mobile
+// Mobile DPR capping: 1.0 for low-end, 1.5 for mid-range, 2.0 for desktop
+const maxDPR = isMobile ? (isLowEndDevice ? 1.0 : 1.5) : 2.0;
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, maxDPR));
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.2;
+renderer.toneMappingExposure = isMobile ? 1.0 : 1.2; // Lower exposure on mobile
 renderer.outputEncoding = THREE.sRGBEncoding;
+
+// Mobile-specific renderer optimizations
+if (isMobile) {
+    // Reduce shadow map size on mobile
+    renderer.shadowMap.enabled = false; // Disable shadows completely on mobile
+    // Force garbage collection hint (browser may ignore)
+    if (typeof window.gc === 'function') {
+        setTimeout(() => window.gc(), 5000);
+    }
+}
+
+/**
+ * Scene Orchestrator - Cinematic Dual-Layer Hero
+ */
+orchestrator = new SceneOrchestrator({
+    canvas,
+    camera,
+    renderer,
+    isMobile
+});
+
+// Add camera group to orchestrator's scene
+orchestrator.scene.add(cameraGroup);
+
+// Add lights to orchestrator's scene
+orchestrator.scene.add(directionalLight);
+orchestrator.scene.add(secondaryLight);
+
+// Initialize with hero program (section 0)
+orchestrator.applyProgramBySectionId('hero', true);
+orchestrator.applyProfile(SECTION_PROFILES[0], true);
+
+/**
+ * Performance Profiler HUD (desktop only, toggle with ?hud=1 or Ctrl+Shift+P)
+ */
+let profilerHUD = null;
+if (!isMobile && orchestrator.qualityManager) {
+    profilerHUD = new ProfilerHUD({
+        qualityManager: orchestrator.qualityManager,
+        frameController: orchestrator.frameController,
+        renderer: renderer
+    });
+    setupHUDToggle(profilerHUD);
+}
+
+// Add particles to orchestrator's scene
+if (particles) {
+    orchestrator.scene.add(particles);
+}
 
 /**
  * Native Scroll-Snap Navigation System
@@ -457,15 +408,11 @@ function setActiveSection(i) {
     }
 }
 
-// Scroll-driven camera and color updates
+// Scroll-driven section detection
 if (scroller) {
     scroller.addEventListener('scroll', () => {
         const y = scroller.scrollTop;
         const indexFloat = y / vh(); // 0..6 continuous
-        
-        // Smoothly drive camera position
-        const targetCamY = -indexFloat * objectsDistance;
-        // Camera lerping happens in tick() function
         
         // Update active section when crossing threshold
         const newIndex = Math.round(indexFloat);
@@ -576,6 +523,11 @@ const setupPage = () => {
 // New system: native browser scroll-snap + velocity-aware pointer handlers above
 
 /**
+ * Cursor Controller (desktop only)
+ */
+const cursorCtl = !isMobile ? new CursorController({ smoothing: 0.18 }) : null;
+
+/**
  * Animation
  */
 const cursor = {
@@ -590,123 +542,123 @@ window.addEventListener('mousemove', (event) => {
 
 const clock = new THREE.Clock();
 let previousTime = 0;
+let fpsArray = [];
+let currentFps = 60;
+
+// Mobile FPS throttling (cap at 30fps to save battery)
+const mobileFrameDelay = isMobile ? 1000 / 30 : 0; // 30fps cap for mobile
+let lastFrameTime = 0;
 
 const tick = () => {
+    // Mobile frame rate throttling
+    if (isMobile && mobileFrameDelay > 0) {
+        const now = performance.now();
+        if (now - lastFrameTime < mobileFrameDelay) {
+            requestAnimationFrame(tick);
+            return;
+        }
+        lastFrameTime = now;
+    }
+    
     const elapsedTime = clock.getElapsedTime();
     const deltaTime = elapsedTime - previousTime;
     previousTime = elapsedTime;
+    
+    // Track FPS for profiler
+    const instantFps = 1 / Math.max(0.0001, deltaTime);
+    fpsArray.push(instantFps);
+    if (fpsArray.length > 10) fpsArray.shift();
+    currentFps = fpsArray.reduce((a, b) => a + b, 0) / fpsArray.length;
 
-    // Update camera position from scroll - smooth continuous following
+    // Update cursor controller and get smooth pointer data
+    let pointerData = null;
+    if (cursorCtl) {
+        pointerData = cursorCtl.update();
+        if (pointerData && orchestrator) {
+            orchestrator.setPointerNDC(pointerData.ndcX, pointerData.ndcY);
+        }
+    }
+
+    // Calculate scroll position for section detection
     let indexFloat = currentSection; // Default to discrete section
     if (scroller) {
         // Calculate continuous scroll position (0..6 for 7 sections)
         indexFloat = scroller.scrollTop / vh();
     }
-    const targetCameraY = -indexFloat * objectsDistance;
-    camera.position.y += (targetCameraY - camera.position.y) * 5 * deltaTime;
     
-    // Calculate and apply camera rotation based on scroll progress
-    const progress = indexFloat / (totalSections - 1);
-    camera.rotation.z = Math.sin(progress * Math.PI) * 0.1;
+    // Keep camera at origin - orchestrator scene is always centered
+    // No vertical camera movement needed since we switch programs per section
+    camera.position.y = 0;
+    
+    // Calculate scroll progress
+    const progress = indexFloat / Math.max(1, totalSections - 1);
 
-    // Apply parallax effect
-    const parallaxX = cursor.x * 0.5;
-    const parallaxY = -cursor.y * 0.5;
+    // Apply parallax effect to camera group (use smoothed cursor or fallback)
+    // Reduce parallax intensity when cursor is idle
+    const isIdle = cursorCtl?.isIdle?.() ?? false;
+    const parallaxScale = isIdle ? 0.6 : 1.0;
+    
+    const effectiveCursor = pointerData ? 
+        { x: pointerData.ndcX * 0.5, y: pointerData.ndcY * 0.5 } : 
+        cursor;
+    
+    const parallaxX = (pointerData ? effectiveCursor.x : cursor.x) * 0.5 * parallaxScale;
+    const parallaxY = (pointerData ? effectiveCursor.y : -cursor.y) * 0.5 * parallaxScale;
     cameraGroup.position.x += (parallaxX - cameraGroup.position.x) * 3 * deltaTime;
     cameraGroup.position.y += (parallaxY - cameraGroup.position.y) * 3 * deltaTime;
 
-    // Update meshes animations with smooth blending effects
-    sectionMeshes.forEach((mesh, i) => {
-        const isMainObject = i % 2 === 0;
-        const sectionIndex = Math.floor(i / 2);
-        const distanceFromCurrent = Math.abs(sectionIndex - currentSection);
-        
-        // Calculate blend factor based on distance from current section
-        const blendFactor = Math.max(0, 1 - distanceFromCurrent * 0.3);
-        
-        if (isMainObject) {
-            // Determine base X position (alternating left/right)
-            const isDesktop = window.innerWidth > 768;
-            const isOddSection = sectionIndex % 2 === 0;
-            const baseX = isDesktop ? (isOddSection ? 2.5 : -2.5) : 0;
-            
-            // Animate main objects
-            mesh.rotation.x = elapsedTime * 0.1 + Math.sin(elapsedTime * 0.3) * 0.1;
-            mesh.rotation.y = elapsedTime * 0.15 + Math.cos(elapsedTime * 0.4) * 0.1;
-            
-            const baseY = -objectsDistance * Math.floor(i/2);
-            mesh.position.y = baseY + Math.sin(elapsedTime * 0.5 + i) * 0.2;
-            // Keep X near base position with subtle oscillation
-            mesh.position.x = baseX + Math.sin(elapsedTime * 0.3 + i) * 0.15;
-            mesh.position.z = -2 + Math.cos(elapsedTime * 0.2 + i) * 0.15;
-            
-            // Smooth opacity blending based on distance
-            const targetOpacity = sectionIndex === currentSection ? 0.7 : 0.3 + blendFactor * 0.2;
-            mesh.material.opacity += (targetOpacity - mesh.material.opacity) * deltaTime * 2;
-            
-            // Smooth scale blending
-            const targetScale = sectionIndex === currentSection ? 1.0 : 0.8 + blendFactor * 0.15;
-            mesh.scale.x += (targetScale - mesh.scale.x) * deltaTime * 2;
-            mesh.scale.y += (targetScale - mesh.scale.y) * deltaTime * 2;
-            mesh.scale.z += (targetScale - mesh.scale.z) * deltaTime * 2;
-            
-            // Color blending based on proximity
-            const currentColor = new THREE.Color(sectionColors[currentSection]);
-            const targetColor = new THREE.Color(sectionColors[sectionIndex]);
-            mesh.material.color.lerp(targetColor, deltaTime * blendFactor * 0.5);
-            if (sectionIndex === currentSection) {
-                mesh.material.color.lerp(currentColor, deltaTime * 2);
-            }
-        } else {
-            // Animate secondary objects with orbital motion
-            mesh.rotation.x = elapsedTime * 0.2;
-            mesh.rotation.y = elapsedTime * 0.3;
-            mesh.rotation.z = elapsedTime * 0.1;
-            
-            const mainMesh = sectionMeshes[i - 1];
-            if (mainMesh) {
-                const angle = elapsedTime * 0.5 + i;
-                const radius = 1.5 + Math.sin(elapsedTime * 0.3) * 0.2;
-                mesh.position.x = mainMesh.position.x + Math.cos(angle) * radius;
-                mesh.position.y = mainMesh.position.y + Math.sin(angle) * radius;
-                mesh.position.z = mainMesh.position.z + Math.sin(angle * 2) * radius;
-                
-                // Sync opacity with main mesh for smooth blending
-                mesh.material.opacity = mainMesh.material.opacity * 0.6;
-            }
-        }
-    });
+    // Camera dolly and roll based on progress
+    camera.rotation.z = Math.sin(progress * Math.PI) * 0.08;
+    camera.position.z = 10 + Math.sin(progress * Math.PI) * 0.6;
 
-    pointLights.forEach((light, i) => {
-        // Keep lights positioned on the same side as objects
-        const isDesktop = window.innerWidth > 768;
-        const isOddSection = i % 2 === 0;
-        const baseX = isDesktop ? (isOddSection ? 2.5 : -2.5) : 0;
-        
-        light.position.x = baseX;
-        light.position.y = - objectsDistance * i + Math.sin(elapsedTime * 0.5) * 0.5;
-        const distanceFromCurrent = Math.abs(i - currentSection);
-        const lightBlend = Math.max(0, 1 - distanceFromCurrent * 0.4);
-        light.intensity = 0.3 + lightBlend * 0.4 + Math.sin(elapsedTime * 0.5) * 0.1;
-    });
-
-    // Animate particles with smooth flow
-    particles.rotation.y = elapsedTime * 0.05;
-    particles.position.y = Math.sin(elapsedTime * 0.2) * 0.2;
-    particles.position.x = Math.cos(elapsedTime * 0.15) * 0.1;
+    // Section IDs map
+    const sectionIdMap = ['hero', 'about', 'experience', 'work', 'skills', 'education', 'contact'];
     
-    // Smooth rings animation for blending effect
-    rings.forEach((ring, i) => {
-        ring.rotation.x += deltaTime * 0.2 * (i % 2 === 0 ? 1 : -1);
-        ring.rotation.y += deltaTime * 0.3;
-        ring.rotation.z += deltaTime * 0.1 * (i % 2 === 0 ? -1 : 1);
+    // Check if section changed and apply new program + profile
+    const nextIndex = Math.round(indexFloat);
+    if (nextIndex >= 0 && nextIndex < SECTION_PROFILES.length) {
+        // Use a persistent variable to track last applied program
+        if (typeof tick.lastProgramIndex === 'undefined') {
+            tick.lastProgramIndex = -1;
+        }
         
-        // Pulsating opacity for blend effect
-        const pulse = Math.sin(elapsedTime * 0.5 + i) * 0.5 + 0.5;
-        ring.material.opacity = 0.5 + pulse * 0.4;
-    });
+        if (nextIndex !== tick.lastProgramIndex) {
+            tick.lastProgramIndex = nextIndex;
+            const sectionId = sectionIdMap[nextIndex];
+            console.log('Switching to section:', nextIndex, sectionId);
+            orchestrator.applyProgramBySectionId(sectionId);
+            orchestrator.applyProfile(SECTION_PROFILES[nextIndex]);
+        }
+    }
 
-    renderer.render(scene, camera);
+    // Pointer for orchestrator (use smoothed pointer if available)
+    const pointer = pointerData ? 
+        { x: pointerData.ndcX, y: pointerData.ndcY } : 
+        { x: cursor.x * 2, y: cursor.y * 2 };
+
+    // Update orchestrator with current FPS
+    if (orchestrator) {
+        orchestrator.update(deltaTime, progress, pointer, currentFps);
+    }
+
+    // Animate particles with smooth flow (apply reduced motion scaling)
+    const motionScale = orchestrator?.prefersReducedMotion ? 0.5 : 1.0;
+    particles.rotation.y = elapsedTime * 0.05 * motionScale;
+    particles.position.y = Math.sin(elapsedTime * 0.2 * motionScale) * 0.2;
+    particles.position.x = Math.cos(elapsedTime * 0.15 * motionScale) * 0.1;
+
+    // Update profiler HUD
+    if (profilerHUD) {
+        profilerHUD.update(currentFps);
+    }
+
+    // Render with orchestrator (includes post-processing)
+    if (orchestrator) {
+        orchestrator.render();
+    } else {
+        renderer.render(scene, camera);
+    }
+    
     requestAnimationFrame(tick);
 };
 
@@ -735,10 +687,13 @@ setTimeout(() => {
 // Start animation
 tick();
 
-// Initialize everything
-if (!loadingManager.isStarted) {
-    loadingManager.onLoad();
-}
+// Force loading manager to complete since we have no textures to load
+setTimeout(() => {
+    if (!isLoadingComplete) {
+        console.log('Forcing loading completion...');
+        loadingManager.onLoad();
+    }
+}, 100);
 
 // Failsafe initialization
 setTimeout(() => {

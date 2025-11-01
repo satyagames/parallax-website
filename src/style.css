@@ -48,6 +48,10 @@ body {
     scroll-snap-type: y mandatory;
     scroll-behavior: smooth;
     overscroll-behavior-y: contain;
+    /* GPU acceleration hints for smoother mobile scrolling */
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    will-change: scroll-position;
     -webkit-overflow-scrolling: touch;
     z-index: 2;
     scrollbar-width: none; /* Hide scrollbar */
@@ -179,6 +183,89 @@ body {
     pointer-events: none; /* Allow clicking through to content */
     mix-blend-mode: screen;
     opacity: 0.95;
+    /* GPU acceleration for smoother rendering */
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    will-change: transform;
+}
+
+/* Mobile-specific canvas optimizations */
+@media (max-width: 768px) {
+    .webgl {
+        /* Reduce opacity on mobile to save blend mode cost */
+        opacity: 0.9;
+        /* Force GPU layer on mobile for better performance */
+        transform: translate3d(0, 0, 0);
+        -webkit-transform: translate3d(0, 0, 0);
+    }
+}
+
+/* Custom Cursor Styles */
+/* Hide default cursor on desktop */
+@media (hover: hover) and (pointer: fine) {
+    body {
+        cursor: none;
+    }
+}
+
+/* Custom cursor container */
+#ux-cursor {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+    z-index: 99999;
+    mix-blend-mode: screen;
+    filter: drop-shadow(0 0 8px rgba(100, 255, 218, 0.5));
+    will-change: transform;
+}
+
+#ux-cursor .ux-cursor-core {
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    margin: -3px 0 0 -3px;
+    border-radius: 50%;
+    background: #64ffda;
+    opacity: 0.9;
+    transform: scale(1);
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow: 0 0 10px rgba(100, 255, 218, 0.6);
+}
+
+#ux-cursor .ux-cursor-ring {
+    position: absolute;
+    width: 32px;
+    height: 32px;
+    margin: -16px 0 0 -16px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(100, 255, 218, 0.4);
+    opacity: 0.85;
+    transition: border-color 0.25s ease, transform 0.15s ease-out;
+    animation: ringPulse 3s ease-in-out infinite;
+    will-change: transform;
+}
+
+@keyframes ringPulse {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 0.7;
+    }
+    50% {
+        transform: scale(1.08);
+        opacity: 0.9;
+    }
+}
+
+/* Mobile: hide custom cursor */
+@media (hover: none) and (pointer: coarse) {
+    #ux-cursor {
+        display: none;
+    }
 }
 
 /* Additional content styles */
